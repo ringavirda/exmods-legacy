@@ -343,13 +343,13 @@ public class SteamSupplyScenarioTests {
       );
     });
 
-  // The pump holds its main at 2 atm, over the valve's 1.5 atm gate, and the valve holds its
-  // output at the 2 atm it spills at, so the boiler flashes 10 L of steam a second. Fails in all
-  // six when the valve records no hold on its output (WaterLine.Hold in
-  // BlockEntityPressureValve.OverflowLiquid).
+  // The pump holds its main at 2 atm, over the valve's 1.5 atm gate, and the valve feeds its
+  // output at its gate, so the boiler flashes 5 L of steam a second. Fails in all six when the
+  // valve records no hold on its output (WaterLine.Hold in BlockEntityPressureValve.OverflowLiquid),
+  // and when it feeds its output at its main's pressure and not its gate.
   [Theory]
   [MemberData(nameof(FedOrders))]
-  public void A_boiler_fed_from_a_relief_valves_output_flashes_at_its_mains_head_in_every_order(
+  public void A_boiler_fed_from_a_relief_valves_output_flashes_at_its_gate_in_every_order(
     string order
   ) =>
     WithStrongPump(() => {
@@ -358,11 +358,11 @@ public class SteamSupplyScenarioTests {
       List<float> flashed = plant.Run(12);
 
       foreach (float steam in flashed.Skip(4))
-        Assert.Equal(Flash(2f), steam, 2);
+        Assert.Equal(Flash(1.5f), steam, 2);
     });
 
   // Fails when a valve turned up past its main keeps holding its output (the release at the top of
-  // BlockEntityPressureValve.OnTick): the line would still read the main's 2 atm.
+  // BlockEntityPressureValve.OnTick): the line would still read the valve's 1.5 atm.
   [Fact]
   public void A_relief_valve_turned_up_past_its_main_lets_its_output_go_to_its_fill() =>
     WithStrongPump(() => {
@@ -371,7 +371,7 @@ public class SteamSupplyScenarioTests {
         [FedBoilerPlant.Ticker.Pump, FedBoilerPlant.Ticker.Between, FedBoilerPlant.Ticker.Boiler]
       );
       plant.Run(8);
-      Assert.Equal(2f, WaterLine.Head(plant.Line), 3);
+      Assert.Equal(1.5f, WaterLine.Head(plant.Line), 3);
 
       plant.SetGate(2.5f);
       plant.Run(1);

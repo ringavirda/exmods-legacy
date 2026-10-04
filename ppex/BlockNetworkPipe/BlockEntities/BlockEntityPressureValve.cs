@@ -16,11 +16,13 @@ namespace PipesAndPowerExpanded.BlockNetworkPipe.BlockEntities;
 
 /// <summary>
 /// Block entity for the pressure-relief valve - a <em>directional</em> overflow. It reads the
-/// network on its input face (orientation[0]; wrench flips "ns" ↔ "sn") and, whenever its
-/// pressure exceeds the player-set gate, spills the excess into the output-face network. Liquid
-/// spills the same way once its pump-set feed pressure tops the gate. With no output network the
-/// output face is an open end: the overflow vents to atmosphere capped at the pipe-leak rate with
-/// particles. The gate defaults to 1 atm, dialled in steps up to the valve's material rating.
+/// network on its input face (orientation[0]; wrench flips "ns" and "sn") and, whenever its
+/// pressure exceeds the player-set gate, spills the excess into the output-face network. Water
+/// spills once the input's <see cref="WaterLine.Pressure"/>, held down by any other relief valve
+/// on it, tops the gate; the valve then holds the input down to its gate and feeds its output at
+/// the gate. With no output network the output face is an open end: the overflow vents to
+/// atmosphere capped at the pipe-leak rate with particles. The gate defaults to 1 atm, dialled in
+/// steps up to the valve's material rating.
 /// </summary>
 [BlockEntityRegister]
 public class BlockEntityPressureValve : BlockEntityPipe {
@@ -209,10 +211,11 @@ public class BlockEntityPressureValve : BlockEntityPipe {
   }
 
   /// <summary>
-  /// Spills the input network's water into the output network once the pressure its pumps hold
-  /// it at (<see cref="WaterLine.Head"/>, its fill ratio when none does) tops the gate, and holds
-  /// the output network at that pressure while it leaves it brim-full. With no output network the
-  /// open face sprays water out, capped at the pipe-leak rate. Returns the litres actually moved.
+  /// Spills the input network's water into the output network once its
+  /// <see cref="WaterLine.Pressure"/>, leaving out this valve's own relief, tops the gate. A valve
+  /// that moves water holds the input down to its gate, and a valve with an output network feeds it
+  /// at the gate. With no output network the open face sprays water out, capped at the pipe-leak
+  /// rate. Returns the litres actually moved.
   /// </summary>
   private float OverflowLiquid(
     PipeNetwork? inNet,
@@ -222,10 +225,8 @@ public class BlockEntityPressureValve : BlockEntityPipe {
     var inState = inNet?.State;
     if (inState == null || !inState.IsLiquid || inState.Volume <= 0f)
       return 0f;
-    float press = WaterLine.Head(inNet!);
-    if (press <= _gatePressure)
+    if (WaterLine.Pressure(inNet!, this) <= _gatePressure)
       return 0f;
-    WaterLine.Relieve(this, inNet, _gatePressure);
 
     var ba = Api.World.BlockAccessor;
     float temp = inState.Temperature;
@@ -240,9 +241,11 @@ public class BlockEntityPressureValve : BlockEntityPipe {
         - (outNet.State?.Volume ?? 0f);
       float move = Math.Min(inState.Volume, free);
       float drawn = move > 0f ? inNet!.TryConsumeLiquid(move, ba) : 0f;
-      if (drawn > 0f)
-        outNet.TryProduceLiquid(drawn, temp, press, ba);
-      WaterLine.Hold(this, outNet, press);
+      if (drawn > 0f) {
+        outNet.TryProduceLiquid(drawn, temp, _gatePressure, ba);
+        WaterLine.Relieve(this, inNet, _gatePressure);
+      }
+      WaterLine.Hold(this, outNet, _gatePressure);
       return drawn;
     }
 
@@ -251,6 +254,7 @@ public class BlockEntityPressureValve : BlockEntityPipe {
       ba
     );
     if (spilled > 0f) {
+      WaterLine.Relieve(this, inNet, _gatePressure);
       ExParticles.WaterJet(Api.World, Pos, outFace);
       ExSounds.SplashSound(Api.World, Pos);
     }

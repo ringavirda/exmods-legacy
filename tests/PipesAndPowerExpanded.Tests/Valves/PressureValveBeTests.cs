@@ -18,17 +18,20 @@ namespace PipesAndPowerExpanded.Tests;
 /// valves saved before the gate was configurable).
 /// </summary>
 public class PressureValveBeTests {
-  private static BlockPressureValve ValveBlock(string material = "iron") {
+  private static BlockPressureValve ValveBlock(
+    string material = "iron",
+    string orientation = "ns"
+  ) {
     var block = TestBlocks.Configure(
       new BlockPressureValve(),
-      $"ppex:pressurevalve-{material}-ns",
-      40,
+      $"ppex:pressurevalve-{material}-{orientation}",
+      orientation == "ns" ? 40 : 41,
       ("material", material),
       ("type", "pressurevalve"),
-      ("orientation", "ns")
+      ("orientation", orientation)
     );
     ReflectionHelpers.SetProperty(block, "Type", "pressurevalve");
-    ReflectionHelpers.SetProperty(block, "Orientation", "ns");
+    ReflectionHelpers.SetProperty(block, "Orientation", orientation);
     return block;
   }
 
@@ -265,6 +268,164 @@ public class PressureValveBeTests {
       WaterLine.Pressure(inNet),
       3
     );
+  }
+
+  /// <summary>
+  /// <see cref="VentRig"/> with the rock at its north end swapped for a second valve, input south,
+  /// both outputs open; the run brim-full and fed at 2 atm by a machine off the line.
+  /// </summary>
+  private static (
+    TestWorld World,
+    BlockEntityPressureValve South,
+    BlockEntityPressureValve North,
+    PipeNetwork Line
+  ) TwoValveRig() {
+    var (world, south, line) = VentRig();
+    world.Place(south.Pos, south.Block, south);
+    var north = new BlockEntityPressureValve();
+    world.Place(new BlockPos(0, 0, -2), ValveBlock(orientation: "sn"), north);
+    world.Attach(north);
+    ReflectionHelpers.SetProperty(
+      north,
+      nameof(north.NetworkSystem),
+      world.Networks
+    );
+    return (world, south, north, line);
+  }
+
+  /// <summary>A machine off the line that brims <paramref name="line"/> and feeds it at
+  /// <paramref name="head"/> atm.</summary>
+  private static BlockEntity Feeder(
+    TestWorld world,
+    PipeNetwork line,
+    float head
+  ) {
+    var feeder = new BlockEntityPressureValve();
+    world.Place(new BlockPos(5, 0, 5), ValveBlock(), feeder);
+    world.Attach(feeder);
+    Brim(world, line, feeder, head);
+    return feeder;
+  }
+
+  private static void Brim(
+    TestWorld world,
+    PipeNetwork line,
+    BlockEntity feeder,
+    float head
+  ) {
+    line.TryProduceLiquid(
+      line.Nodes.Count * ExlibValues.LitresPerPipe,
+      20f,
+      head,
+      world.Accessor
+    );
+    WaterLine.Hold(feeder, line, head);
+  }
+
+  private static void Gate(BlockEntityPressureValve valve, float gate) {
+    while (valve.GatePressure > gate + 0.001f && valve.AdjustGatePressure(false)) { }
+    while (valve.GatePressure < gate - 0.001f && valve.AdjustGatePressure(true)) { }
+  }
+
+  // Fails when a valve opens on the line's head and not its held pressure (WaterLine.Pressure in
+  // BlockEntityPressureValve.OverflowLiquid): the 1.5 atm valve would spill beside the 0.5.
+  [Theory]
+  [InlineData(true)]
+  [InlineData(false)]
+  public void Of_two_reliefs_on_one_line_only_the_lower_gate_spills(
+    bool lowFirst
+  ) {
+    var (world, low, high, line) = TwoValveRig();
+    Gate(low, 0.5f);
+    Gate(high, 1.5f);
+    BlockEntity feeder = Feeder(world, line, 2f);
+
+    for (int second = 0; second < 4; second++) {
+      Brim(world, line, feeder, 2f);
+      RunTick(lowFirst ? low : high);
+      RunTick(lowFirst ? high : low);
+    }
+
+    Assert.True(Tick(low) > 0f, "the 0.5 atm valve spilled nothing");
+    Assert.Equal(0f, Tick(high), 3);
+    Assert.Equal(0.5f, WaterLine.Pressure(line), 3);
+  }
+
+  // Fails when a valve records its relief before it knows it can discharge (WaterLine.Relieve
+  // ahead of the gas check in BlockEntityPressureValve.OverflowLiquid): the line would read 0.5.
+  [Fact]
+  public void A_relief_into_a_gas_run_does_not_hold_its_line_down() {
+    var (world, valve, line, output) = OutputRig();
+    output.TryProduceGas(
+      30f,
+      150f,
+      "Steam",
+      world.Accessor,
+      maxOutputPressure: 10f
+    );
+    Gate(valve, 0.5f);
+    Feeder(world, line, 2f);
+
+    RunTick(valve);
+
+    Assert.Equal(0f, Tick(valve), 3);
+    Assert.Equal(2f, WaterLine.Pressure(line), 3);
+  }
+
+  // Fails when a valve whose output takes no water still records its relief (WaterLine.Relieve
+  // outside the drawn branch in BlockEntityPressureValve.OverflowLiquid): the line would read 0.5.
+  [Fact]
+  public void A_relief_into_a_full_water_run_does_not_hold_its_line_down() {
+    var (world, valve, line, output) = OutputRig();
+    output.TryProduceLiquid(
+      output.Nodes.Count * ExlibValues.LitresPerPipe,
+      20f,
+      1f,
+      world.Accessor
+    );
+    Gate(valve, 0.5f);
+    Feeder(world, line, 2f);
+
+    RunTick(valve);
+
+    Assert.Equal(0f, Tick(valve), 3);
+    Assert.Equal(2f, WaterLine.Pressure(line), 3);
+  }
+
+  // Fails when a valve feeds its output at its input's pressure and not its gate (_gatePressure in
+  // the Hold of BlockEntityPressureValve.OverflowLiquid): the output would read 2 atm.
+  [Fact]
+  public void A_relief_feeds_its_output_at_its_gate() {
+    var (world, valve, line, output) = OutputRig();
+    Gate(valve, 1.5f);
+    Feeder(world, line, 2f);
+
+    RunTick(valve);
+
+    Assert.True(Tick(valve) > 0f, "the valve spilled nothing");
+    Assert.Equal(1.5f, WaterLine.Head(output), 3);
+  }
+
+  /// <summary><see cref="VentRig"/> with a one-pipe run on the valve's output, capped south.</summary>
+  private static (
+    TestWorld World,
+    BlockEntityPressureValve Valve,
+    PipeNetwork Line,
+    PipeNetwork Output
+  ) OutputRig() {
+    var (world, valve, line) = VentRig();
+    world.Place(valve.Pos, valve.Block, valve);
+    world.Place(
+      new BlockPos(0, 0, 2),
+      PipeTestWorld.MakePipe(orientation: "ns")
+    );
+    world.Place(
+      new BlockPos(0, 0, 3),
+      TestBlocks.Configure(new Block(), "game:rock", 99)
+    );
+    world.AddNode(new BlockPos(0, 0, 2), "pipe");
+    var output = (PipeNetwork)world.NetworkAt(new BlockPos(0, 0, 2))!;
+    return (world, valve, line, output);
   }
 
   #endregion
