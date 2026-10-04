@@ -11,6 +11,7 @@ using PipesAndPowerExpanded.BlockStructures.Engine.Blocks;
 using PipesAndPowerExpanded.Tests;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
+using BlockEntity = Vintagestory.API.Common.BlockEntity;
 using BlockPipePassthrough = PipesAndPowerExpanded.BlockNetworkPipe.Blocks.BlockPipePassthrough;
 using BoilerState = PipesAndPowerExpanded.BlockStructures.Boiler.BlockEntityBoiler.BoilerState;
 
@@ -21,8 +22,8 @@ namespace Integration.Tests.Setups;
 /// Cornish boiler with a chimney on its exhaust, its steam main to a Watt engine turning a fluid pump,
 /// a 3.5 atm relief valve on the steam main, a pond intake under the pump, and the feed main from the
 /// pump and the engine's condensate back into the boiler with a 0.5 atm relief valve. Machines are
-/// built in tick order, the engine, the pump and the water valve last in the order the constructor
-/// is given. Each second is recorded under the drawing's ids and kept as a <see cref="Second"/>.
+/// built in tick order, the engine, the pump and the water valve last, unless <see cref="Slots"/>
+/// names another order. Each second is recorded under the drawing's ids and kept as a <see cref="Second"/>.
 /// </summary>
 internal sealed class StarterSteamPowerPlant {
   /// <summary>The file name of the setup's recording.</summary>
@@ -52,20 +53,6 @@ internal sealed class StarterSteamPowerPlant {
     float Feed
   );
 
-  /// <summary>The machines whose tick order the plant takes as a constructor argument.</summary>
-  public enum Ticker {
-    Engine,
-    Pump,
-    WaterValve,
-  }
-
-  /// <summary>The tick order D11 builds: engine, pump, then the water valve.</summary>
-  public static readonly IReadOnlyList<Ticker> DrawnOrder = [
-    Ticker.Engine,
-    Ticker.Pump,
-    Ticker.WaterValve,
-  ];
-
   public readonly Scene Scene = new Scene().Network(
     "pipe",
     s => new PipeNetwork(s)
@@ -90,6 +77,10 @@ internal sealed class StarterSteamPowerPlant {
   private SetupRecording? _recording;
   private float _lastWater;
 
+  /// <summary>The machines <see cref="Slots"/> fires last, in order; a null entry is the network
+  /// tick.</summary>
+  private BlockEntity?[]? _slots;
+
   /// <summary>Water (L) the boiler drew from its feed main in the last second: the change in its
   /// water plus what it boiled.</summary>
   private float _feedDraw;
@@ -97,25 +88,13 @@ internal sealed class StarterSteamPowerPlant {
   /// <param name="chimney">A chimney on the exhaust outlet; without one the outlet is open on top.</param>
   /// <param name="steamValve">The steam main's relief valve; without one its cell is capped.</param>
   /// <param name="openEnd">A pipe on the steam main open to air on its north face.</param>
-  /// <param name="order">
-  /// The order the engine, the pump and the water valve are placed in, which is their tick order;
-  /// each named once. Null is <see cref="DrawnOrder"/>.
-  /// </param>
   /// <param name="waterGate">Gate of the feed main's relief valve (atm).</param>
-  /// <exception cref="ArgumentException"><paramref name="order"/> does not name each of the three once.</exception>
   public StarterSteamPowerPlant(
     bool chimney = true,
     bool steamValve = true,
     bool openEnd = false,
-    IReadOnlyList<Ticker>? order = null,
     float waterGate = WaterGate
   ) {
-    order ??= DrawnOrder;
-    if (order.Count != 3 || order.Distinct().Count() != 3)
-      throw new ArgumentException(
-        "The order names the engine, the pump and the water valve once each.",
-        nameof(order)
-      );
     Scene.World.BreakRunsBlockHooks = false;
 
     Boiler = new BoilerFixture(Scene, new BlockPos(0, 8, 0));
@@ -236,19 +215,10 @@ internal sealed class StarterSteamPowerPlant {
     );
     WaterValve = NewValve(waterTee.NorthCopy(), "sn");
 
-    foreach (Ticker ticker in order)
-      switch (ticker) {
-        case Ticker.Engine:
-          Scene.Machine(enginePos, engineBlock, Engine);
-          RccFake.Complete(Engine);
-          break;
-        case Ticker.Pump:
-          Scene.Machine(pumpPos, pumpBlock, Pump);
-          break;
-        case Ticker.WaterValve:
-          Install(WaterValve, waterGate);
-          break;
-      }
+    Scene.Machine(enginePos, engineBlock, Engine);
+    RccFake.Complete(Engine);
+    Scene.Machine(pumpPos, pumpBlock, Pump);
+    Install(WaterValve, waterGate);
   }
 
   /// <summary>
@@ -309,11 +279,16 @@ internal sealed class StarterSteamPowerPlant {
   /// </summary>
   public StarterSteamPowerPlant Run(int seconds) {
     Scene.Build();
+    if (_slots != null)
+      TickSlots.Order(Scene.World, [.. _slots.OfType<BlockEntity>()]);
     Boiler.Prime(BoilerState.Idle, water: PrimeWater, steam: 0f);
     _lastWater = Water;
     for (int t = 0; t < seconds; t++) {
       float boiled = Boiled();
-      Scene.Step(1);
+      if (_slots == null)
+        Scene.Step(1);
+      else
+        TickSlots.Step(Scene.World, NetworkSlot());
       float water = Water;
       _feedDraw = water - _lastWater + boiled;
       _lastWater = water;
@@ -335,6 +310,23 @@ internal sealed class StarterSteamPowerPlant {
       );
     }
     return this;
+  }
+
+  /// <summary>
+  /// Fires the machines in <paramref name="order"/> after every other tick listener in each second,
+  /// in that order, and runs the network tick in the place of the null entry among them, or after
+  /// all of them when there is none. Taken by <see cref="Run"/>.
+  /// </summary>
+  public StarterSteamPowerPlant Slots(params BlockEntity?[] order) {
+    _slots = order;
+    return this;
+  }
+
+  private int NetworkSlot() {
+    int at = Array.IndexOf(_slots!, null);
+    return at < 0 || at == _slots!.Length - 1
+      ? int.MaxValue
+      : TickSlots.Before(Scene.World, _slots[at + 1]!);
   }
 
   /// <summary>The first second <paramref name="failed"/> holds, or null when none does.</summary>

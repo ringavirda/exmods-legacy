@@ -13,7 +13,7 @@ using Vintagestory.API.Util;
 using Xunit;
 using Xunit.Abstractions;
 using AssetLocation = Vintagestory.API.Common.AssetLocation;
-using Ticker = Integration.Tests.Setups.StarterSteamPowerPlant.Ticker;
+using BlockEntity = Vintagestory.API.Common.BlockEntity;
 
 namespace Integration.Tests.Setups;
 
@@ -34,6 +34,9 @@ public class StarterSteamPowerSetupTests(ITestOutputHelper output) {
   /// <summary>What the steam main's relief valve vents in the drawing (L/s): the boiler's make
   /// over the engine's draw.</summary>
   private const double DrawnSteamVent = 2.0;
+
+  /// <summary>What the boiler draws from its feed main in the drawing (L/s).</summary>
+  private const double DrawnFeed = 2.0;
 
   private const float BandLow = 2f;
   private const float BandHigh = 4f;
@@ -130,15 +133,47 @@ public class StarterSteamPowerSetupTests(ITestOutputHelper output) {
       );
   }
 
-  /// <summary>The six orders of the engine, the pump and the water valve, comma-separated.</summary>
-  public static TheoryData<string> Orders() {
-    var orders = new TheoryData<string>();
-    Ticker[] all = [Ticker.Engine, Ticker.Pump, Ticker.WaterValve];
-    foreach (Ticker first in all)
-      foreach (Ticker second in all.Where(t => t != first))
-        orders.Add($"{first},{second},{all.Single(t => t != first && t != second)}");
-    return orders;
+  /// <summary>
+  /// Tick slots, one letter each: E the engine, P its pump, W the water valve, B the boiler and N
+  /// the network tick. Every order of the four machines with the network tick after them, and the
+  /// network tick in each earlier place in the drawn order EPWB and in its reverse BWPE.
+  /// </summary>
+  public static TheoryData<string> Slots() {
+    var slots = new TheoryData<string>();
+    foreach (string order in Permutations("EPWB"))
+      slots.Add(order + "N");
+    foreach (string order in new[] { "EPWB", "BWPE" })
+      for (int n = 0; n < order.Length; n++)
+        slots.Add(order.Insert(n, "N"));
+    return slots;
   }
+
+  private static IEnumerable<string> Permutations(string letters) =>
+    letters.Length <= 1
+      ? [letters]
+      : letters.SelectMany(
+        (c, i) => Permutations(letters.Remove(i, 1)).Select(rest => c + rest)
+      );
+
+  /// <summary>Has <paramref name="plant"/> fire its machines and network tick in
+  /// <paramref name="slots"/>, read as <see cref="Slots"/> spells it.</summary>
+  private static StarterSteamPowerPlant Slotted(
+    StarterSteamPowerPlant plant,
+    string slots
+  ) =>
+    plant.Slots(
+      [
+        .. slots.Select(c =>
+          c switch {
+            'E' => plant.Engine,
+            'P' => plant.Pump,
+            'W' => plant.WaterValve,
+            'B' => plant.Boiler.Be,
+            _ => (BlockEntity?)null,
+          }
+        ),
+      ]
+    );
 
   #endregion
 
@@ -242,54 +277,51 @@ public class StarterSteamPowerSetupTests(ITestOutputHelper output) {
     );
   }
 
-  // a to d fail in every order under their mutations in the drawn order's test above; the chimney
-  // left off fails a in all six. e fails in the two orders where the water valve ticks before the
-  // pump when the boiler reads its feed main's live pressure (waterNet.State.Pressure in
-  // BlockEntityBoiler): the main is then brim-full at the pump's head and the feed flashes steam.
-  // It fails in all six when the water valve does not hold the main down (WaterLine.Relieve in
-  // BlockEntityPressureValve.OverflowLiquid).
+  // a to d fail in every slot under their mutations in the drawn order's test above; the chimney
+  // left off fails a in all of them. e fails in the eight slots where the boiler is the next
+  // machine to tick after the pump with no network tick between them (BWEPN, BEWPN, PBEWN, PBWEN,
+  // EPBWN, WPBEN, EWPBN, WEPBN) when the boiler reads its feed main's live pressure
+  // (waterNet.State.Pressure in BlockEntityBoiler): the main is then brim-full at the pump's head
+  // and the feed flashes steam. It fails in all of them when the water valve does not
+  // hold the main down (WaterLine.Relieve in BlockEntityPressureValve.OverflowLiquid).
   [Theory]
-  [MemberData(nameof(Orders))]
-  public void The_setup_holds_in_every_tick_order(string order) {
-    var plant = new StarterSteamPowerPlant(
-      order: order.Split(',').Select(Enum.Parse<Ticker>).ToList()
-    );
+  [MemberData(nameof(Slots))]
+  public void The_setup_holds_in_every_tick_order(string slots) {
+    var plant = Slotted(new StarterSteamPowerPlant(), slots);
     SetupRecording recording = plant.Record(RunSeconds);
     plant.Run(RunSeconds);
 
     HoldsAToD(plant, recording);
     IReadOnlyDictionary<string, object> steady = recording.Steady();
     output.WriteLine(
-      $"{order}: steam.flow {steady["steam.flow"]} l/s,"
+      $"{slots}: steam.flow {steady["steam.flow"]} l/s,"
         + $" steam-valve.vent {steady["steam-valve.vent"]} l/s,"
         + $" water-valve.vent {steady["water-valve.vent"]} l/s,"
         + $" boiler.feed {steady["boiler.feed"]} l/s, feed.pressure {steady["feed.pressure"]} atm"
     );
     double flow = (double)steady["steam.flow"];
     double vent = (double)steady["steam-valve.vent"];
+    double feed = (double)steady["boiler.feed"];
     Assert.True(
       Math.Abs(flow - DrawnSteamFlow) <= 0.5
-        && Math.Abs(vent - DrawnSteamVent) <= 0.5,
-      $"e: the steam run carried {flow} L/s and the steam valve vented {vent} L/s"
+        && Math.Abs(vent - DrawnSteamVent) <= 0.5
+        && Math.Abs(feed - DrawnFeed) <= 0.1,
+      $"e: the steam run carried {flow} L/s, the steam valve vented {vent} L/s"
+        + $" and the boiler drew {feed} L/s"
     );
   }
 
   // With the water valve gated at 1.5 atm the engine's pump holds the feed main at 2.625 atm, the
   // valve opens and holds it down to 1.5, and the boiler flashes half a litre of steam per litre it
-  // draws: 1 L/s on top of its 32, vented by the steam valve. Fails in the orders where a draw
-  // falls between the pump and the water valve when the valve opens on the main's live pressure
-  // (inState.Pressure in BlockEntityPressureValve.OverflowLiquid), and in all six when the engine's
-  // pump records no hold (WaterLine.Hold in BlockEntityEngineFluidPump.DoWork) or the boiler reads
-  // the main's live pressure.
+  // draws: 1 L/s on top of its 32, vented by the steam valve. Fails in every slot when the
+  // engine's pump records no hold (WaterLine.Hold in BlockEntityEngineFluidPump.DoWork) or the
+  // boiler reads the main's live pressure (waterNet.State.Pressure in BlockEntityBoiler).
   [Theory]
-  [MemberData(nameof(Orders))]
+  [MemberData(nameof(Slots))]
   public void A_relief_gated_above_1_atm_holds_the_feed_at_its_gate_in_every_tick_order(
-    string order
+    string slots
   ) {
-    var plant = new StarterSteamPowerPlant(
-      order: order.Split(',').Select(Enum.Parse<Ticker>).ToList(),
-      waterGate: 1.5f
-    );
+    var plant = Slotted(new StarterSteamPowerPlant(waterGate: 1.5f), slots);
     SetupRecording recording = plant.Record(RunSeconds);
     plant.Run(RunSeconds);
 
@@ -299,8 +331,41 @@ public class StarterSteamPowerSetupTests(ITestOutputHelper output) {
     Assert.True(
       Math.Abs(flow - (DrawnSteamFlow + 1.0)) <= 0.5
         && Math.Abs(vent - (DrawnSteamVent + 1.0)) <= 0.5,
-      $"{order}: the steam run carried {flow} L/s and the steam valve vented {vent} L/s"
+      $"{slots}: the steam run carried {flow} L/s and the steam valve vented {vent} L/s"
     );
+  }
+
+  // With a 6 L/s pump and the water valve gated at 5 atm, above the pump's head, the valve stays
+  // shut and the main is held at the pump's head, so the boiler flashes over 1 L/s of steam on top
+  // of its 32 in every slot. Fails in 16 of the 32 slots when the engine records no feed
+  // (WaterLine.Hold in BlockEntityEngine.OutputCondensate): the main then reads its fill when the
+  // condensate brims it and the feed does not flash.
+  [Theory]
+  [MemberData(nameof(Slots))]
+  public void A_main_the_condensate_brims_is_held_at_the_pumps_head_in_every_tick_order(
+    string slots
+  ) {
+    float rate = PpexValues.PumpWaterPerSecond;
+    try {
+      PpexValues.Edit(c => c.PumpWaterPerSecond = 6f);
+      var plant = Slotted(new StarterSteamPowerPlant(waterGate: 5f), slots);
+      SetupRecording recording = plant.Record(RunSeconds);
+      plant.Run(RunSeconds);
+
+      IReadOnlyDictionary<string, object> steady = recording.Steady();
+      double flow = (double)steady["steam.flow"];
+      double head =
+        (double)steady["engine.pressure"] * PpexValues.SteamEngineEfficiency;
+      float main = WaterLine.Pressure(plant.FeedRun);
+      output.WriteLine($"{slots}: steam.flow {flow} l/s, main {main} atm, head {head} atm");
+      Assert.True(
+        Math.Abs(main - head) <= 0.2 && flow >= DrawnSteamFlow + 1.0,
+        $"{slots}: the main read {main} atm against the pump's {head}, and the steam run"
+          + $" carried {flow} L/s"
+      );
+    } finally {
+      PpexValues.Edit(c => c.PumpWaterPerSecond = rate);
+    }
   }
 
   // Fails when a pump whose engine gives it no power keeps holding its main (the release at the
@@ -319,14 +384,16 @@ public class StarterSteamPowerSetupTests(ITestOutputHelper output) {
   }
 
   // Fails when a pump that has lost its engine keeps holding its main (the
-  // OnIdleProductionTick of BlockEntityEngineFluidPump).
+  // OnIdleProductionTick of BlockEntityEngineFluidPump): the main would read the pump's 2.625 atm.
   [Fact]
   public void A_pump_without_an_engine_lets_its_main_go_to_its_fill() {
     var plant = new StarterSteamPowerPlant().Run(300);
     Assert.True(WaterLine.Head(plant.FeedRun) > 1f, "the premise: the pump holds the main");
 
-    ReflectionHelpers.Invoke(plant.Pump, "OnIdleProductionTick", 1f);
+    plant.Scene.World.Unload(plant.Engine.Pos);
+    plant.Scene.Step(1);
 
+    Assert.Null(plant.Pump.Engine);
     Assert.True(
       WaterLine.Head(plant.FeedRun) <= 1f,
       $"the main read {WaterLine.Head(plant.FeedRun)} atm"
