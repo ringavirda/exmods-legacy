@@ -21,6 +21,7 @@ using Xunit;
 using BoilerState = PipesAndPowerExpanded.BlockStructures.Boiler.BlockEntityBoiler.BoilerState;
 using BlockPipe = PipesAndPowerExpanded.BlockNetworkPipe.Blocks.BlockPipe;
 using BlockPipePassthrough = PipesAndPowerExpanded.BlockNetworkPipe.Blocks.BlockPipePassthrough;
+using BlockForFluidsLayer = Vintagestory.GameContent.BlockForFluidsLayer;
 
 namespace Integration.Tests.Saves;
 
@@ -574,7 +575,7 @@ public class PpexSaveGoldenTests {
 
   /// <summary>Fills the cube below <see cref="At"/> the intake scans with still water.</summary>
   private static void FloodBelow(TestWorld world) {
-    var water = TestBlocks.Configure(new Block(), "game:water-still-7", 200);
+    var water = TestBlocks.Configure(new BlockForFluidsLayer(), "game:water-still-7", 200);
     water.LiquidCode = "water";
     int depth = PpexValues.FluidIntakeWaterDepth;
     int half = depth / 2;

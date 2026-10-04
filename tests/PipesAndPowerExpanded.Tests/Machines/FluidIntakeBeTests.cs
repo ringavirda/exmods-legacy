@@ -5,6 +5,7 @@ using PipesAndPowerExpanded.BlockNetworkPipe.Blocks;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 using Xunit;
 
 namespace PipesAndPowerExpanded.Tests;
@@ -16,7 +17,7 @@ namespace PipesAndPowerExpanded.Tests;
 /// </summary>
 public class FluidIntakeBeTests {
   private static Block WaterBlock(TestWorld world) {
-    var water = TestBlocks.Configure(new Block(), "game:water-still-7", 200);
+    var water = TestBlocks.Configure(new BlockForFluidsLayer(), "game:water-still-7", 200);
     water.LiquidCode = "water";
     world.Register(water);
     return water;
