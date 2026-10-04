@@ -381,9 +381,18 @@ public class BlockEntityBlastFurnace : BlockEntityMultiblockMachine {
           if (pipe.Medium == "Air") {
             // Best pressure standing at any tuyere, for the readout - so a player can see how far
             // short of the gate the blast is rather than only that it is short.
-            float blast = GasLine.Pressure(this.NetworkAt<PipeNetwork>(pos));
+            PipeNetwork? tuyereRun = this.NetworkAt<PipeNetwork>(pos);
+            float blast = GasLine.Pressure(tuyereRun);
             _blastPressure = Math.Max(_blastPressure, blast);
-            if (blast >= SmexValues.BfBlastPressureThreshold) {
+            // The run is read as settled after this tuyere's draw; a lit furnace adds that draw
+            // back (as a pressure over the run's capacity) so it does not lose its blast on the
+            // dip its own air makes.
+            float own =
+              State != BlastFurnaceState.Idle
+              && tuyereRun?.State is { MaxVolume: > 0f } runState
+                ? perTuyereDemand / runState.MaxVolume
+                : 0f;
+            if (blast + own >= SmexValues.BfBlastPressureThreshold) {
               hotBlastTemp = Math.Max(hotBlastTemp, pipe.Temperature);
               receivingBlast = true;
             }

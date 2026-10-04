@@ -7,6 +7,7 @@ using PipesAndPowerExpanded.BlockNetworkPipe.BlockEntities;
 using PipesAndPowerExpanded.Helpers;
 using PipesAndPowerExpanded.Tests;
 using SteelmakingExpanded;
+using SteelmakingExpanded.BlockStructures.BlastFurnace;
 using SteelmakingExpanded.BlockStructures.Converter.BlockEntities;
 using SteelmakingExpanded.BlockStructures.SmokeStack.BlockEntities;
 using SteelmakingExpanded.Tests;
@@ -298,6 +299,56 @@ public class GasReadingTickOrderTests {
     object? receiving = ReflectionHelpers.Invoke(rig.Control, "BlastNetwork", 1f);
 
     Assert.Null(receiving);
+  }
+
+  // Both tuyere runs stand under the gate by half the furnace's own draw over the run's capacity.
+  private static BlastFurnaceRig FurnaceUnderTheGate(
+    BlastFurnaceState state,
+    float hearth,
+    int burden = 400
+  ) {
+    var rig = new BlastFurnaceRig(burden).SetState(state).SetTemp(hearth);
+    var tuyeres = (PipeNetwork[])ReflectionHelpers.GetField(rig, "_tuyeres")!;
+    float draw =
+      (float)ReflectionHelpers.GetField(rig.Furnace, "_tuyereIntakeVolume")!
+      * (float)ReflectionHelpers.Invoke(rig.Furnace, "AirDemandFactor", hearth)!;
+    foreach (PipeNetwork tuyere in tuyeres) {
+      Settle(
+        tuyere,
+        "Air",
+        SmexValues.BfBlastPressureThreshold - 0.5f * draw / Max(tuyere),
+        950f
+      );
+      tuyere.BroadcastUpdate(rig.World.Accessor);
+    }
+    return rig;
+  }
+
+  // Fails when a lit furnace judges the settled figure alone (blast >= BfBlastPressureThreshold in
+  // BlockEntityBlastFurnace's tuyere loop): it counts the blast as lost on the dip its own air made.
+  [Fact]
+  public void A_burning_blast_furnace_keeps_its_blast_while_its_own_draw_holds_the_tuyeres_under_the_gate() {
+    var rig = FurnaceUnderTheGate(BlastFurnaceState.Firing, 1400f);
+
+    ProductionTick(rig.Furnace);
+
+    Assert.Equal(0f, rig.ExtinguishSeconds, 3);
+    Assert.Equal(BlastFurnaceState.Firing, rig.State);
+  }
+
+  // Fails when the own draw is counted for a furnace that is not lit (the State != Idle guard in
+  // BlockEntityBlastFurnace's tuyere loop): an alight hearth is then lit on blast under the gate.
+  [Fact]
+  public void An_unlit_blast_furnace_still_needs_the_full_gate_to_light() {
+    var rig = FurnaceUnderTheGate(BlastFurnaceState.Idle, 1400f, burden: 100);
+
+    ProductionTick(rig.Furnace);
+
+    Assert.Equal(
+      1f,
+      (float)ReflectionHelpers.GetField(rig.Furnace, "_unblownSeconds")!,
+      3
+    );
   }
 
   // O is a second stove drawing the same blast main. Fails in OR when the stove reads the
