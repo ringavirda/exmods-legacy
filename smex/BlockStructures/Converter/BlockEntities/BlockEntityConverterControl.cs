@@ -577,9 +577,7 @@ public class BlockEntityConverterControl : BlockEntityMultiblockMachine {
       return;
     }
 
-    bool nowSolid =
-      MoltenMetal.GetTemperature(Api.World, _content)
-      < MoltenMetal.MeltingPointOf(Api.World, _content);
+    bool nowSolid = IsBelowMeltingPoint();
     if (nowSolid != _solidified) {
       _solidified = nowSolid;
       if (nowSolid)
@@ -588,6 +586,11 @@ public class BlockEntityConverterControl : BlockEntityMultiblockMachine {
       MarkDirty();
     }
   }
+
+  private bool IsBelowMeltingPoint() =>
+    _content != null
+    && MoltenMetal.GetTemperature(Api.World, _content)
+      < MoltenMetal.MeltingPointOf(Api.World, _content);
 
   #endregion
 
@@ -976,7 +979,7 @@ public class BlockEntityConverterControl : BlockEntityMultiblockMachine {
   /// </summary>
   public ItemStack? OnConverterBroken() {
     ItemStack? drops = null;
-    if (_solidified && _content != null && _contentUnits > 0)
+    if (HasSolidifiedCharge)
       drops = BuildSolidifiedDrops();
 
     // Scrap that never melted comes back whole and in kind - it was already solid, and it is still
@@ -1045,9 +1048,13 @@ public class BlockEntityConverterControl : BlockEntityMultiblockMachine {
 
   #region Chisel-out (small hardened residue)
 
-  /// <summary>True when a solidified charge is present (latched below the melting point).</summary>
+  /// <summary>True when a solidified charge is present: latched by the production tick, or below its
+  /// melting point now, since the tick stops before the latch while any part of the plant is missing
+  /// or misaligned.</summary>
   public bool HasSolidifiedCharge =>
-    _solidified && _content != null && _contentUnits > 0;
+    _content != null
+    && _contentUnits > 0
+    && (_solidified || IsBelowMeltingPoint());
 
   /// <summary>True when the charge has cooled below the hardened (chisellable) threshold.</summary>
   public bool ChargeIsHardened =>

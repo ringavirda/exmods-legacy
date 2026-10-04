@@ -190,7 +190,7 @@ public class ConverterChiselTests {
   public void A_still_liquid_charge_cannot_be_chiselled() {
     var world = NewWorld();
     var be = Control(world);
-    PrimeCharge(be, world, 300f, 100, solidified: false);
+    PrimeCharge(be, world, 1600f, 100, solidified: false);
 
     Assert.False(be.HasSolidifiedCharge);
     Assert.False(be.CanChiselOut());

@@ -80,6 +80,29 @@ public partial class BlockConverterBessemer
       world.SpawnItemEntity(solidifiedDrops, pos.ToVec3d().Add(0.5, 0.5, 0.5));
   }
 
+  // An explosion removes the vessel without OnBlockBroken, so the solidified charge is collected and
+  // spawned here as a break would.
+  public override void OnBlockExploded(
+    IWorldAccessor world,
+    BlockPos pos,
+    BlockPos explosionCenter,
+    EnumBlastType blastType,
+    string ignitedByPlayerUid
+  ) {
+    ItemStack? solidifiedDrops = (
+      world.BlockAccessor.GetBlockEntity(pos) as BlockEntityConverterBessemer
+    )?.CollectBreakDrops();
+    base.OnBlockExploded(
+      world,
+      pos,
+      explosionCenter,
+      blastType,
+      ignitedByPlayerUid
+    );
+    if (solidifiedDrops != null && world.Side == EnumAppSide.Server)
+      world.SpawnItemEntity(solidifiedDrops, pos.ToVec3d().Add(0.5, 0.5, 0.5));
+  }
+
   // The vessel is spawned by the control block, never placed from an item, so there is no vessel item
   // to hand back: dropping itself would mint a block the player could not have crafted. What it does
   // return is the placement cost the control block took from the player's hotbar - the large gear and
