@@ -9,6 +9,7 @@ using ExpandedLib.Machines;
 using ExpandedLib.Industry.Helpers;
 using ExpandedLib.Industry.MechanicalPower;
 using PipesAndPowerExpanded.BlockStructures.Engine.BlockEntities;
+using PipesAndPowerExpanded.Helpers;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -268,6 +269,7 @@ public abstract class BlockEntityEngine : BlockEntityProductionMachine {
   #region Power
 
   protected override void OnProductionTick(float dt) {
+    WaterLine.Hold(this, null, 0f);
     if (EngineBlock == null)
       return;
 
@@ -336,7 +338,8 @@ public abstract class BlockEntityEngine : BlockEntityProductionMachine {
 
   /// <summary>
   /// Sends condensed water out the outlet. A connected line takes what it has room for (at no
-  /// pressure - only the pump pressurises water); anything it cannot hold backs up and is lost.
+  /// pressure - only the pump pressurises water) and counts as fed at 0 atm; anything it cannot
+  /// hold backs up and is lost.
   /// </summary>
   private void OutputCondensate(float amount, IBlockAccessor ba) {
     var outNet = this.ConnectedNetwork<PipeNetwork>(EngineBlock!.WaterOutletFace);
@@ -345,7 +348,11 @@ public abstract class BlockEntityEngine : BlockEntityProductionMachine {
       return;
     }
     outNet!.TryProduceLiquid(amount, 90f, 0f, ba);
+    WaterLine.Hold(this, outNet, 0f);
   }
+
+  protected override void OnIdleProductionTick(float dt) =>
+    WaterLine.Hold(this, null, 0f);
 
   /// <summary>
   /// Whether condensate leaving the outlet sprays into the world: when the face is unplumbed, or the
