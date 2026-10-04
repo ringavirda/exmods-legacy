@@ -7,10 +7,14 @@ using ExpandedLib.Industry.MechanicalPower;
 using ExpandedLib.Industry.Pipes;
 using ExpandedLib.Testing;
 using Integration.Tests.Saves;
+using NSubstitute;
 using PipesAndPowerExpanded.BlockStructures.Engine;
 using PipesAndPowerExpanded.BlockStructures.Engine.BlockEntities;
 using PipesAndPowerExpanded.BlockStructures.Engine.Blocks;
+using Vintagestory.API.Client;
+using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 using Vintagestory.GameContent.Mechanics;
 using Xunit;
 
@@ -346,6 +350,50 @@ public class MpGeneratorBehaviorTests {
         lastClip = clip;
       }
     }
+  }
+
+  // OnRenderFrame hands the engine the axle angle and AxisSign; the clip frame it pins has to be
+  // the one the north engine's reversed clip stands at.
+  [Fact]
+  public void The_render_frame_pins_the_cyclemp_clip_to_the_reversed_axle_angle() {
+    var (_, plant, mp) = Rig(0.5f);
+    mp.SetOrientations();
+    var network = MechPower.Network(speed: 1f);
+    network.UpdateAngle(1.3f);
+    ReflectionHelpers.SetField(mp, "network", network);
+    ReflectionHelpers.SetField(plant.Generator, "_mp", mp);
+    Assert.True(
+      BlockEntityEngine.MpCycleRunsReversed(
+        mp.AxisSign,
+        ((BlockEngine)plant.Engine.Block).MpCycleCrankFace
+      )
+    );
+
+    const int frames = 120;
+    var animator = Substitute.For<AnimatorBase>(
+      null,
+      new[] { new Animation { Code = "cyclemp", QuantityFrames = frames } },
+      null
+    );
+    RunningAnimation state = animator.GetAnimationState("cyclemp");
+    var capi = Substitute.For<ICoreClientAPI>();
+    var animatable = new BEBehaviorAnimatable(plant.Engine);
+    animatable.animUtil = new BlockEntityAnimationUtil(capi, plant.Engine) {
+      animator = animator,
+    };
+    plant.Engine.Api = capi;
+    ReflectionHelpers.SetField(plant.Engine, "_animatable", animatable);
+    ReflectionHelpers.SetField(plant.Engine, "_animatorReady", true);
+    ReflectionHelpers.SetField(plant.Engine, "_mpTurning", true);
+
+    plant.Generator.OnRenderFrame(0.016f, EnumRenderStage.Before);
+
+    Assert.NotEqual(0f, mp.AngleRad);
+    Assert.Equal(
+      MPAnim.FrameFromAngle(-mp.AngleRad, frames),
+      state.CurrentFrame,
+      3
+    );
   }
 
   // The angle the cyclemp clip stands at once MPAnim.LockFrameToAngle has pinned its frame.
