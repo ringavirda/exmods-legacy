@@ -30,6 +30,9 @@ public class SteamMpPowerSetupTests(ITestOutputHelper output) {
 
   /// <summary>What the pump lifts in the drawing (L/s).</summary>
   private const double DrawnPumpOutput = 7.81;
+
+  /// <summary>The load the generator carries in the drawing: hammers and pump on the line.</summary>
+  private const double DrawnLoad = 0.629;
 #else
   // Before 1.22 a toggle working a hammer adds 5 exp(2.8 speed - 5) to its 0.125, so the line
   // carries more load and turns slower.
@@ -39,6 +42,9 @@ public class SteamMpPowerSetupTests(ITestOutputHelper output) {
 
   /// <summary>What the pump lifts in the drawing (L/s).</summary>
   private const double DrawnPumpOutput = 6.71;
+
+  /// <summary>The load the generator carries in the drawing: hammers and pump on the line.</summary>
+  private const double DrawnLoad = 0.974;
 #endif
 
   /// <summary>What the boiler draws from its feed main in the drawing (L/s).</summary>
@@ -217,13 +223,15 @@ public class SteamMpPowerSetupTests(ITestOutputHelper output) {
     double speed = (double)steady["generator.speed"];
     double lifted = (double)steady["pump.output"];
     double feed = (double)steady["boiler.feed"];
+    double load = (double)steady["generator.load"];
     Assert.True(
       Math.Abs(flow - DrawnSteamFlow) <= 0.5
         && Math.Abs(speed - DrawnSpeed) <= 0.01
         && Math.Abs(lifted - DrawnPumpOutput) <= 0.2
-        && Math.Abs(feed - DrawnFeed) <= 0.1,
+        && Math.Abs(feed - DrawnFeed) <= 0.1
+        && Math.Abs(load - DrawnLoad) <= 0.01,
       $"e: the steam run carried {flow} L/s, the line turned at {speed}, the pump lifted"
-        + $" {lifted} L/s and the boiler drew {feed} L/s"
+        + $" {lifted} L/s, the boiler drew {feed} L/s and the generator carried {load}"
     );
     IReadOnlyList<string> unsteady = recording.Unsteady();
     Assert.True(
