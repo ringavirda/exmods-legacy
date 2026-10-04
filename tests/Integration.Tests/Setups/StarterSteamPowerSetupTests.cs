@@ -311,7 +311,7 @@ public class StarterSteamPowerSetupTests(ITestOutputHelper output) {
     );
   }
 
-  // With the water valve gated at 1.5 atm the engine's pump holds the feed main at 2.625 atm, the
+  // With the water valve gated at 1.5 atm the engine's pump holds the feed main at 2.633 atm, the
   // valve opens and holds it down to 1.5, and the boiler flashes half a litre of steam per litre it
   // draws: 1 L/s on top of its 32, vented by the steam valve. Fails in every slot when the
   // engine's pump records no hold (WaterLine.Hold in BlockEntityEngineFluidPump.DoWork) or the
@@ -369,7 +369,7 @@ public class StarterSteamPowerSetupTests(ITestOutputHelper output) {
   }
 
   // Fails when a pump whose engine gives it no power keeps holding its main (the release at the
-  // head of BlockEntityEngineFluidPump.DoWork): the main would read the pump's 2.625 atm.
+  // head of BlockEntityEngineFluidPump.DoWork): the main would read the pump's 2.633 atm.
   [Fact]
   public void A_pump_without_power_lets_its_main_go_to_its_fill() {
     var plant = new StarterSteamPowerPlant().Run(300);
@@ -384,7 +384,7 @@ public class StarterSteamPowerSetupTests(ITestOutputHelper output) {
   }
 
   // Fails when a pump that has lost its engine keeps holding its main (the
-  // OnIdleProductionTick of BlockEntityEngineFluidPump): the main would read the pump's 2.625 atm.
+  // OnIdleProductionTick of BlockEntityEngineFluidPump): the main would read the pump's 2.633 atm.
   [Fact]
   public void A_pump_without_an_engine_lets_its_main_go_to_its_fill() {
     var plant = new StarterSteamPowerPlant().Run(300);
