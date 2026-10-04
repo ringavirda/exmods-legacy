@@ -10,6 +10,15 @@ build it, with the materials each right-click construction stage consumes. The b
 Cornish Boiler and the Lancashire Boiler carry their own materials tables, computed from the
 structure itself.
 
+## A construction stage does not say what to add
+
+The stage materials, the construction hints and the pipe network all come from Expanded Library
+(exlib), which has to be installed beside this mod in the build made for your game version.
+Without exlib, or with one older than 0.8.4, the game does not load Pipes and Power Expanded or
+Steelmaking Expanded at all and names the missing library in client-main.log (server-main.log on
+a dedicated server). If exlib is installed and a stage still lists no materials, send that log
+with the report.
+
 ## These steam engines are very weak, is it even worth the iron?
 
 The game has no single power number: an engine's output is torque, resistance and rotation speed
