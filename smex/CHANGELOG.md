@@ -37,6 +37,12 @@ part-built structure keeps its stage.
 - **A blowing converter, a burning blast furnace and a charging Cowper stove judge their blast
   without the dip their own draw makes, so none of them stops and starts on its own steam of
   air.**
+- **A blowing Cowper stove no longer makes air.** It took one rated intake, 24 L/s, from its cold
+  air passthrough and passed on as much of the passthrough's standing air as the hot-blast main took, so a
+  furnace drawing 40 L/s through it got 16 L/s from nowhere; a passthrough holding less than
+  24 L passed on a full 24 L. The stove now takes from the passthrough exactly what the hot main
+  accepts, so the blowers carry the furnace's whole draw. A second in which the hot main takes
+  nothing costs the core no heat.
 
 ### Changed
 

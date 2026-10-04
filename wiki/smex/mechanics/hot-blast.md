@@ -65,6 +65,10 @@ proportion to the air actually drawn against its rated 24 L/s. At a full draw it
 margin over the incoming air in about 9 min 40 s. A stove doing nothing at all still bleeds toward
 ambient with a half-life of about 19 minutes, so a charged stove cannot be banked for later.
 
+A blowing stove passes on what its blowers deliver: it takes from the passthrough exactly the air
+the hot-blast main accepts, so the blowers carry the furnace's whole draw. A second in which the
+hot main takes nothing costs the core no heat.
+
 While it passes air, the stove judges the pressure its hot outlet may be fed at on the blast main as
 it would stand without the stove's own draw.
 
