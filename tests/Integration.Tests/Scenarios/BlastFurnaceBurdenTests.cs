@@ -157,6 +157,8 @@ public sealed class BlastFurnaceBurdenTests : IDisposable {
     world.Attach(pile);
 #if GAME_GE_1_22
     pile.RegisterServerTickListener();
+#else
+    BlastFurnaceRig.RegisterBurningTick(world, pile);
 #endif
 
     for (int i = 0; i < 300; i++) {

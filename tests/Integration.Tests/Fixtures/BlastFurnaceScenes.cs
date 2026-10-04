@@ -345,6 +345,24 @@ internal sealed class BlastFurnaceRig {
     }
   }
 
+#if !GAME_GE_1_22
+  /// <summary>
+  /// Registers <paramref name="pile"/>'s vanilla burning tick, which game 1.21 and 1.20 register
+  /// only from Initialize; the test world keeps ticking a listener after its block entity leaves
+  /// the world, so the tick fires only while the pile is still placed.
+  /// </summary>
+  internal static void RegisterBurningTick(TestWorld world, BlockEntityCoalPile pile) {
+    long id = pile.RegisterGameTickListener(
+      dt => {
+        if (world.Api.World.BlockAccessor.GetBlockEntity(pile.Pos) == pile)
+          ReflectionHelpers.Invoke(pile, "onBurningTickServer", dt);
+      },
+      10000
+    );
+    ReflectionHelpers.SetField(pile, "listenerId", id);
+  }
+#endif
+
   /// <summary>
   /// Runs <paramref name="seconds"/> one-second furnace ticks with the game clock moving at
   /// <see cref="SecondsPerGameHour"/>, the hearth piles' own burn tick and every other block-entity
@@ -361,6 +379,14 @@ internal sealed class BlastFurnaceRig {
         is BlockEntityCoalPile { IsBurning: true } pile
       )
         pile.RegisterServerTickListener();
+#else
+    foreach (var pos in _pilePositions)
+      if (
+        World.Api.World.BlockAccessor.GetBlockEntity(pos)
+        is BlockEntityCoalPile { IsBurning: true } pile
+        && (long)ReflectionHelpers.GetField(pile, "listenerId")! == 0
+      )
+        RegisterBurningTick(World, pile);
 #endif
     for (int i = 0; i < seconds; i++) {
       eachSecond?.Invoke(this);
