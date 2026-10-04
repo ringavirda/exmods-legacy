@@ -168,7 +168,7 @@ internal sealed class ConverterRig {
   /// the machine would.
   /// </summary>
   public ConverterRig Refine() {
-    float pressure = (float)ReflectionHelpers.Invoke(Control, "BlastPressure")!;
+    float pressure = (float)ReflectionHelpers.Invoke(Control, "BlastPressure", 1f)!;
     ReflectionHelpers.Invoke(Control, "TickNormal", 1f, pressure);
     return this;
   }

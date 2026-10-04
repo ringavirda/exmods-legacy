@@ -220,8 +220,8 @@ public class GasReadingTickOrderTests {
       slots,
       () => {
         reading = (float)
-          ReflectionHelpers.Invoke(rig.Control, "BlastPressure")!;
-        receiving = ReflectionHelpers.Invoke(rig.Control, "BlastNetwork");
+          ReflectionHelpers.Invoke(rig.Control, "BlastPressure", 1f)!;
+        receiving = ReflectionHelpers.Invoke(rig.Control, "BlastNetwork", 1f);
       },
       () => blast.TryConsumeGas(0.5f * Max(blast), rig.World.Accessor)
     );
@@ -261,6 +261,43 @@ public class GasReadingTickOrderTests {
       (float)ReflectionHelpers.GetField(rig.Furnace, "_blastPressure")!,
       3
     );
+  }
+
+  // The blast main stands under the gate by half the converter's own draw over the run's capacity.
+  private static (ConverterRig, PipeNetwork) ConverterUnderTheGate(
+    bool blewLastTick
+  ) {
+    var rig = new ConverterRig();
+    var blast = (PipeNetwork)ReflectionHelpers.GetField(rig, "_blast")!;
+    ReflectionHelpers.SetField(rig.Control, "_blewLastTick", blewLastTick);
+    float own =
+      SmexValues.BessemerBlastPerSecond
+      * SmexValues.BessemerSpeedMin
+      / Max(blast);
+    Settle(blast, "Air", SmexValues.BlastPressureThreshold - 0.5f * own);
+    return (rig, blast);
+  }
+
+  // Fails when a blowing converter judges the settled figure alone (pressure >= BlastPressureThreshold
+  // in BlockEntityConverterControl.BlastNetwork): it stops on the dip its own air made.
+  [Fact]
+  public void A_blowing_converter_stays_plumbed_in_while_its_own_draw_holds_the_main_under_the_gate() {
+    var (rig, blast) = ConverterUnderTheGate(blewLastTick: true);
+
+    object? receiving = ReflectionHelpers.Invoke(rig.Control, "BlastNetwork", 1f);
+
+    Assert.Same(blast, receiving);
+  }
+
+  // Fails when the own draw is counted for a converter that did not blow (the _blewLastTick guard in
+  // BlockEntityConverterControl.BlastNetwork): an idle converter starts under the gate.
+  [Fact]
+  public void An_idle_converter_still_needs_the_full_gate() {
+    var (rig, _) = ConverterUnderTheGate(blewLastTick: false);
+
+    object? receiving = ReflectionHelpers.Invoke(rig.Control, "BlastNetwork", 1f);
+
+    Assert.Null(receiving);
   }
 
   // O is a second stove drawing the same blast main. Fails in OR when the stove reads the

@@ -114,6 +114,7 @@ public class BlockEntityConverterControl : BlockEntityMultiblockMachine {
 
   // Whether the last tick blew the charge; synced for the blow's sounds.
   private bool _blowing;
+  private bool _blewLastTick;
 
   // The roaring blast through the bath and the carbon burning off over it, while it blows (client
   // only).
@@ -186,6 +187,7 @@ public class BlockEntityConverterControl : BlockEntityMultiblockMachine {
 
   protected override void OnProductionTick(float dt) {
     bool wasBlowing = _blowing;
+    _blewLastTick = wasBlowing;
     _blowing = false;
     TickVessel(dt);
     if (_blowing != wasBlowing)
@@ -213,7 +215,7 @@ public class BlockEntityConverterControl : BlockEntityMultiblockMachine {
 
     // Sampled once here and handed down: the blast figures have to be read on the server and synced,
     // and only the refining path draws air at all.
-    float pressure = BlastPressure();
+    float pressure = BlastPressure(dt);
 
     switch (OpState) {
       case ConverterOpState.Filling:
@@ -283,7 +285,7 @@ public class BlockEntityConverterControl : BlockEntityMultiblockMachine {
     // Refining requires blast: harder blast draws more air and converts quicker, in step.
     _convSpeed = ConversionSpeed(pressure);
     float demand = BlastPerSecond * _convSpeed * dt;
-    float consumed = TryConsumeBlast(demand);
+    float consumed = TryConsumeBlast(demand, dt);
     // Per second, which is what the panel prints - demand and draw are both per-tick here.
     SampleBlastReadout(
       pressure,
@@ -619,10 +621,13 @@ public class BlockEntityConverterControl : BlockEntityMultiblockMachine {
 
   /// <summary>
   /// The blast network feeding the intake, or <c>null</c> when there is none or it is not carrying
-  /// air at the blast pressure. The intake is a fixed connector, not a node: the network lives in
-  /// the cell across its connector face, and only a pipe facing back counts as plumbed in.
+  /// air at the blast pressure. A converter that blew last tick counts the air it draws over
+  /// <paramref name="dt"/> (as a pressure over the run's capacity) towards that gate, so it does not
+  /// stop on the dip its own draw makes in the settled figure. The intake is a fixed connector, not
+  /// a node: the network lives in the cell across its connector face, and only a pipe facing back
+  /// counts as plumbed in.
   /// </summary>
-  private PipeNetwork? BlastNetwork() {
+  private PipeNetwork? BlastNetwork(float dt) {
     BlockPos intakePos = PeripheralPos(GasIntakeLocal);
     if (
       Api.World.BlockAccessor.GetBlock(intakePos)
@@ -639,18 +644,21 @@ public class BlockEntityConverterControl : BlockEntityMultiblockMachine {
       is not PipeNetwork pipeNet
     )
       return null;
-    return
-      pipeNet.State?.MediumType == "Air"
-      && GasLine.Pressure(pipeNet) >= SmexValues.BlastPressureThreshold
-      ? pipeNet
-      : null;
+    if (pipeNet.State?.MediumType != "Air")
+      return null;
+    float pressure = GasLine.Pressure(pipeNet);
+    float own =
+      _blewLastTick && pipeNet.State is { MaxVolume: > 0f } state
+        ? BlastPerSecond * ConversionSpeed(pressure) * dt / state.MaxVolume
+        : 0f;
+    return pressure + own >= SmexValues.BlastPressureThreshold ? pipeNet : null;
   }
 
   /// <summary>Pressure (atm) at the intake, or 0 when it is not receiving blast.</summary>
-  private float BlastPressure() => GasLine.Pressure(BlastNetwork());
+  private float BlastPressure(float dt) => GasLine.Pressure(BlastNetwork(dt));
 
-  private float TryConsumeBlast(float amount) =>
-    BlastNetwork()?.TryConsumeGas(amount, Api.World.BlockAccessor) ?? 0f;
+  private float TryConsumeBlast(float amount, float dt) =>
+    BlastNetwork(dt)?.TryConsumeGas(amount, Api.World.BlockAccessor) ?? 0f;
 
   /// <summary>True if the transmission's mechanical network is turning.</summary>
   public bool HasPower() {
