@@ -1,6 +1,7 @@
 using ExpandedLib.Industry.Molten;
 using ExpandedLib.Industry.Pipes;
 using ExpandedLib.Testing;
+using Integration.Tests;
 using PipesAndPowerExpanded.BlockNetworkPipe.BlockEntities;
 using PipesAndPowerExpanded.Tests;
 using SteelmakingExpanded.BlockNetworkMolten.BlockEntities;
@@ -155,6 +156,7 @@ internal sealed class ConverterRig {
       World.Accessor,
       maxOutputPressure: atm
     );
+    _blast.Settle();
     return this;
   }
 

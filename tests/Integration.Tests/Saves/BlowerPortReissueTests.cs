@@ -58,7 +58,7 @@ public class BlowerPortReissueTests {
       maxOutputPressure: MainAtm
     );
     Assert.Equal(MainAtm, net.State!.Pressure, 3);
-    world.Tick();
+    net.Settle();
 
     world.FireBlockEntityTicks();
 

@@ -1,5 +1,6 @@
 using ExpandedLib.Industry.Pipes;
 using ExpandedLib.Testing;
+using Integration.Tests;
 using PipesAndPowerExpanded.BlockNetworkPipe.BlockEntities;
 using PipesAndPowerExpanded.BlockStructures.Engine.BlockEntities;
 using PipesAndPowerExpanded.BlockStructures.Engine.Blocks;
@@ -74,6 +75,7 @@ internal sealed class EngineFixture {
         _scene.World.Accessor,
         maxOutputPressure: atm
       );
+    _scene.NetworkAt<PipeNetwork>(_inletPipe)!.Settle();
     return this;
   }
 

@@ -1,5 +1,6 @@
 using ExpandedLib.Industry.Pipes;
 using ExpandedLib.Testing;
+using Integration.Tests;
 using PipesAndPowerExpanded.BlockNetworkPipe.BlockEntities;
 using PipesAndPowerExpanded.Tests;
 using SteelmakingExpanded.BlockNetworkMolten.BlockEntities;
@@ -302,6 +303,8 @@ internal sealed class BlastFurnaceRig {
           );
           net.BroadcastUpdate(World.Accessor); // push Medium/Pressure/Temperature to the tuyere pipes
         }
+      foreach (var net in _tuyeres)
+        net.Settle();
       ReflectionHelpers.Invoke(Furnace, "OnProductionTick", 1f);
     }
     return this;

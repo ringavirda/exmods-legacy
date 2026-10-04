@@ -219,6 +219,7 @@ public class PressureValveBeTests {
       world.Accessor,
       maxOutputPressure: 10f
     );
+    inNet.OnTick(world.Accessor, 1f, world.Networks);
     float before = inNet.State!.Volume;
 
     RunTick(valve);
@@ -239,6 +240,7 @@ public class PressureValveBeTests {
       world.Accessor,
       maxOutputPressure: 10f
     );
+    inNet.OnTick(world.Accessor, 1f, world.Networks);
 
     RunTick(valve);
 
