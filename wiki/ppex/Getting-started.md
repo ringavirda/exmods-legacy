@@ -110,10 +110,32 @@ Now the boiler no longer needs filling by hand.
 
 ## 7. The whole plant
 
-The figure below is the plant this page builds, played from a test run of the current code, and
-each machine in it links to its own page.
+The figure below is the plant this page builds, played from a test run of the current code. Each
+machine links to its own page and shows its state, each pipe carries its rate, and the legend under
+the drawing names the colours. The steps build it in the order of the sections above.
 
 ::plant{page="Starter steam power setup" recording="starter-steam-power"}
+
+1. Set the Fluid Intake on the pond and pipe it to the Fluid Pump's underside. The intake makes
+   only the water the pump draws, :plant{recording="starter-steam-power" value="pond.flow"} in this plant.
+2. Raise the Cornish Boiler, stand the chimney on its exhaust outlet, and fill the vessel by bucket
+   or with a Manual Fluid Pump before lighting the fire. The boiler stops boiling at
+   :plant{recording="starter-steam-power" value="boiler.max"}, and held there with the fire burning it bursts.
+3. Pipe the steam to the Watt Engine's inlet, with a T-junction in the line and the steam relief
+   valve on its branch, gated at :plant{recording="starter-steam-power" value="steam-valve.gate"}. The engine runs from
+   :plant{recording="starter-steam-power" value="engine.engage"} and wears toward a break above :plant{recording="starter-steam-power" value="engine.break"}, so the gate keeps it
+   inside that band. The boiler makes :plant{recording="starter-steam-power" value="steam.flow"} and the engine draws
+   :plant{recording="starter-steam-power" value="engine.steam"}; the valve vents the other :plant{recording="starter-steam-power" value="steam-valve.vent"}.
+4. Set the Fluid Pump in the engine's drive cell and pipe its delivery into the boiler's feedwater
+   passthrough. The engine's condensate drain joins the same main and adds :plant{recording="starter-steam-power" value="engine.water"}.
+   Water does not compress: the main holds no more than its pipes' volume, and once brim full it
+   stands at the pump's delivery pressure, the engine's inlet pressure times
+   :plant{recording="starter-steam-power" value="engine.efficiency"}.
+5. Put a T-junction in the feed main and hang the water relief valve off its branch, gated at
+   :plant{recording="starter-steam-power" value="water-valve.gate"}. Feed water above :plant{recording="starter-steam-power" value="boiler.boostAbove"} flashes to extra steam in
+   the boiler on top of what the fire makes, so the valve keeps the main below that. The boiler
+   takes the :plant{recording="starter-steam-power" value="boiler.feed"} it boils away and the valve sprays out the other
+   :plant{recording="starter-steam-power" value="water-valve.vent"}.
 
 ## 8. What to add next
 
