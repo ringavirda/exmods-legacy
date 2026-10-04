@@ -30,6 +30,10 @@ The engine draws its full steam rate whenever it is engaged, and the power it de
 the share of that steam the line can actually supply. A starved line does not stop an engine, it
 makes it weak.
 
+Once running, an engine judges its engage pressure on the main as it would stand without its own
+draw, so the dip its own steam makes does not stop it; its inlet can read a little under the engage
+figure while it runs.
+
 An engine also sets the output pressure of its sub-machine, at 75 per cent of its own inlet steam
 pressure. That is what a pump lifts against and what a blower blows at.
 

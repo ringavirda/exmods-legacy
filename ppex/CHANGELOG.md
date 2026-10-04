@@ -39,6 +39,8 @@ its 1.22 build does not work beside the new library. A part-built machine keeps 
   pushes its fluid pump, at one pressure whichever of it, the boiler and the steam main's relief valve
   runs first; a relief valve spills what stood above its gate; a boiler sharing a flue with another
   is not put out by the other filling it earlier in the second.
+- **A running engine judges its engage pressure without the dip its own draw makes, so it no
+  longer stops and starts while a plant warms up.**
 - **The engine's beam turns with the Mechanical Power Generator's axle in every facing.** A Watt
   or Cornish engine facing north or east drove its rod round the crank against the axle beside it.
   Engines facing south or west already turned with it and are unchanged.
