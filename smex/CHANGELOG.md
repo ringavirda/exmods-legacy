@@ -34,6 +34,9 @@ part-built structure keeps its stage.
   the line earlier in the same second changes nothing the others see: a furnace or a converter on a
   shared blast main gets its blast, a stove passes it on and a blower's shaft is loaded at one
   pressure whichever runs first.
+- **A blowing converter, a burning blast furnace and a charging Cowper stove judge their blast
+  without the dip their own draw makes, so none of them stops and starts on its own steam of
+  air.**
 
 ### Changed
 

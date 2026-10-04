@@ -65,6 +65,9 @@ proportion to the air actually drawn against its rated 24 L/s. At a full draw it
 margin over the incoming air in about 9 min 40 s. A stove doing nothing at all still bleeds toward
 ambient with a half-life of about 19 minutes, so a charged stove cannot be banked for later.
 
+While it passes air, the stove judges the pressure its hot outlet may be fed at on the blast main as
+it would stand without the stove's own draw.
+
 That is why stoves come in pairs: one charges on exhaust while the other blows, and they change
 places before the blowing one runs down.
 

@@ -74,7 +74,9 @@ Volume is only half of it. Air counts as blast only while the pipe at a tuyere c
 medium at 1.5 atm or more; below that the furnace treats it as no blast at all and starts its
 extinguish clock. The panel prints both figures, "Blast input: 24.0 L/s of 40.0 L/s needed" and
 "Blast pressure: 1.20 atm (min 1.50 atm)", and they fail independently: a line moving plenty of
-air under the gate reads fine on the first line and puts the furnace out anyway.
+air under the gate reads fine on the first line and puts the furnace out anyway. Once lit, the
+furnace judges its 1.5 atm on each tuyere as it would stand without its own draw; an unlit hearth
+still needs the full 1.5 atm.
 
 Two machines make air. Pressures are absolute atmospheres; a pipe run open to the air sits at
 1 atm.

@@ -25,6 +25,8 @@ The build is on the [[Bessemer converter]] page.
 | metal in | a canal delivering molten iron to the input tap above the vessel |
 | metal out | a canal start under the vessel to take the finished steel |
 
+Once blowing, the converter judges its 2.5 atm on the main as it would stand without its own draw.
+
 The gas intake and the transmission must face the same way as the control block. Any other
 orientation leaves the multiblock incomplete, and the build outline marks the part in red.
 
