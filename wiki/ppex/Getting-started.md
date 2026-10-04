@@ -95,8 +95,9 @@ far more than the 2 L/s the boiler is boiling away.
 That surplus needs a way out. The pump delivers at three quarters of the engine's inlet pressure,
 about 2.6 atm behind an engine at 3.5, and water fed into a boiling vessel above 1 atm flashes to
 extra steam on the way in, a litre of steam per litre per atm over 1, on top of what the fire
-makes. The pump keeps the feed main brim-full at its pressure, and a relief valve on the main holds
-it down to the valve's gate. Put a Piping (T-Junction) in it and hang a
+makes. The feed main is held at the pump's pressure whenever the pump or the engine's condensate
+leaves it brim full, and a relief valve on the main holds it down to the valve's gate while it
+spills. Put a Piping (T-Junction) in it and hang a
 second Piping (Pressure Valve) off the branch the same way as the steam one, copper-trimmed side to
 the run and the other side open to the air, gated at 0.5 atm. It sprays out whatever the boiler
 does not take and keeps the feed main under 1 atm.

@@ -23,13 +23,15 @@ its 1.22 build does not work beside the new library. A part-built machine keeps 
   it settles at about 1 atm. Two boilers on one leaking run, or a charged main that sprang a leak,
   could burst a boiler; they no longer can.
 - **Whether a boiler's feed flashes to steam no longer depends on the order the game runs its
-  machines in.** A water line reads the head of the pump that keeps it brim-full, and a relief valve
-  the line tops holds it down to the valve's gate for every machine drawing from it. The starter
-  plant's 0.5 atm water relief valve now keeps the feed from flashing in every session; before, the
-  boiler caught the main full at the pump's head whenever the valve ran before the pump. A steam
-  condenser carries the pressure of the line feeding it on to its outlet, and a relief valve the
-  pressure of the line it spills from on to its overflow line, the same way, so a boiler fed
-  through either flashes the same in every session.
+  machines in.** Whenever anything feeding a water line left it brim-full in the last second, the
+  engine's condensate included, the line is held at the highest head that fed it in that second; a
+  steam condenser feeds its outlet at the pressure of the line feeding it. A relief valve opens on
+  the line's held pressure; while it spills it holds the line down to its gate for every machine
+  drawing from it and feeds its overflow at no more than its gate, so of a 0.5 and a 1.5 atm valve
+  on one main only the 0.5 one spills. The starter plant's 0.5 atm water relief valve now keeps the
+  feed from flashing in every session; before, the boiler caught the main full at the pump's head
+  whenever the pump ran after both the engine and the valve. A line that gains or loses a pipe
+  reads its fill until the machines on it run again.
 
 ### Changed
 

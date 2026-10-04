@@ -37,11 +37,15 @@ fourth root of the reading plus one, which is 119 C at 1 atm, 132 C at 2 atm, 15
 190 C at 12 atm.
 
 Water behaves differently. It cannot be packed past the run's capacity, so a water line reads its
-fill ratio while it is filling and jumps to the delivery head of the pump feeding it once it is
-brim full, 1 atm from the Manual Fluid Pump, 1.5 atm from the Mechanical Fluid Pump, and the
-engine's inlet steam pressure times 0.75 from the Fluid Pump. A pressure valve the line tops holds
-it down to the valve's gate for every machine drawing from it, so a boiler fed from a main with a
-relief valve gated at 0.5 atm takes its water at 0.5 atm.
+fill ratio while it is filling. Whenever anything feeding it left it brim full in the last second,
+the engine's condensate included, it is held at the highest head that fed it in that second: 1 atm
+from the Manual Fluid Pump, 1.5 atm from the Mechanical Fluid Pump, the engine's inlet steam
+pressure times 0.75 from the Fluid Pump, 0 atm from an engine's condensate, and from a Steam
+Condenser the pressure of the line feeding it. A pressure valve opens on the line's held pressure;
+while it spills it holds the line down to its gate for every machine drawing from it and feeds its
+overflow at no more than its gate. A boiler fed from a main with a relief valve gated at 0.5 atm
+takes its water at 0.5 atm, and of a 0.5 and a 1.5 atm valve on one main only the 0.5 one spills.
+A line that gains or loses a pipe reads its fill ratio until the machines on it run again.
 
 A gas run cools 2 C per second toward 20 C, whether or not anything is drawing from it, and a
 leaking one cools 5 C per second on top of that. Pressure does not change with it.
