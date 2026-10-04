@@ -96,6 +96,10 @@ public class TraceReplayTests {
   /// <summary>Industry's passive gas cooling, 2 deg C/s toward 20 deg C, which ppex never ran.</summary>
   private const string Cooling = "cooling";
 
+  /// <summary>Industry's passive gas cooling, and a machine reading its gas main as the last network
+  /// tick settled it, a second behind the live pressure the published ppex read.</summary>
+  private const string CoolingAndSettledReading = "cooling-and-settled-reading";
+
   /// <summary>Canal metal cooling on 1.20 and 1.21, where the published smex held it at its
   /// temperature.</summary>
   private const string CanalCooling = "canal-cooling";
@@ -209,7 +213,7 @@ public class TraceReplayTests {
       { "pipe-throughput-water-250", Same, "", 0, "" },
       { "pipe-chimney-outlet", Expected, Cooling, 1, "temp" },
       { "machine-cowper-exhaust", Expected, Cooling, 1, "core,temp" },
-      { "machine-boiler-watt", Expected, Cooling, 1, "temp" },
+      { "machine-boiler-watt", Expected, CoolingAndSettledReading, 1, "inlet,p,power,shaft,steam,temp,vol" },
       { "machine-blower-load", Same, "", 0, "" },
       { "molten-rate", Same, "", 0, "" },
 #if GAME_GE_1_22

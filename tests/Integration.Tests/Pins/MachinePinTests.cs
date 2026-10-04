@@ -209,7 +209,7 @@ public class MachinePinTests {
     }
     trace.Save();
 
-    Assert.Equal(11, engaged);
+    Assert.Equal(12, engaged);
     Assert.Equal(47, running);
     Assert.Equal(28.2f, output, Trace.PowerDigits);
   }
@@ -271,6 +271,7 @@ public class MachinePinTests {
           scene.World.Accessor,
           maxOutputPressure: atm[t]
         );
+      net.Settle();
       scene.Step();
       loads[t] = port.GetResistance();
       PipeTrace.Runs(trace, t + 1, scene.World, [main]);
