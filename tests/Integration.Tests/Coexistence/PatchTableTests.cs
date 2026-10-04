@@ -49,6 +49,10 @@ public class PatchTableTests {
 #endif
     ("BlockEntityCoalPile.Initialize postfix CoalPileBurdenPatches", "none"),
     (
+      "BlockEntityCoalPile.OnBurningTickServer prefix CoalPileBurdenPatches",
+      "none"
+    ),
+    (
       "BlockEntityCoalPile.ToTreeAttributes postfix CoalPileBurdenPatches",
       "none"
     ),

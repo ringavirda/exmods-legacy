@@ -23,6 +23,11 @@ part-built structure keeps its stage.
   not be chiselled out; a converter blown up dropped nothing of its charge. Each 5 units (the
   default) come back as one bit, less up to two bits lost in the break; a charge still molten is
   lost as before.
+- **A lit blast furnace no longer loses burden while it is not melting.** Each burning pile in
+  the hearth burned one burden off its stack every two in-game hours, whether the furnace was
+  melting, stalled on a full reservoir or a blocked flue, or still climbing to iron's melting point.
+  Only a melt cycle takes burden out of the hearth now, and a pile lit outside a furnace goes cold
+  with all its burden.
 
 ### Changed
 

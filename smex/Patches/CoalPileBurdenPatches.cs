@@ -13,9 +13,10 @@ namespace SteelmakingExpanded.Patches;
 /// burning for as long as the campaign runs. Per-pile state lives in a side table keyed by the
 /// vanilla block entity, so other mods that touch the coal pile can coexist.
 /// <para>
-/// Nothing is destroyed here. An unblown charge is burden that never got the air to work, so it is
-/// left exactly as it was loaded, ready to be lit again - the furnace, not the pile, decides
-/// whether it becomes iron.
+/// A burning burden pile never burns its own stack down: only a blast furnace melt cycle takes
+/// burden out of it. An unblown charge is burden that never got the air to work, so it is left
+/// exactly as it was loaded, ready to be lit again - the furnace, not the pile, decides whether it
+/// becomes iron.
 /// </para>
 /// </summary>
 public static class BurdenPiles {
@@ -57,22 +58,39 @@ public static class BurdenPiles {
       pile.Extinguish();
   }
 
+  private static readonly AccessTools.FieldRef<
+    BlockEntityCoalPile,
+    double
+  > _burnStartTotalHours = AccessTools.FieldRefAccess<
+    BlockEntityCoalPile,
+    double
+  >("burnStartTotalHours");
+
+  private static bool HoldsBurden(BlockEntityCoalPile pile) =>
+    pile.inventory != null
+    && pile.inventory.Count > 0
+    && !pile.inventory[0].Empty
+    && pile.inventory[0].Itemstack?.Collectible.Code.Path == "burden";
+
   internal static void OnCheckBurn(BlockEntityCoalPile pile) {
     var state = _states.GetOrCreateValue(pile);
     if (state.Managed)
       return;
 
-    if (
-      pile.IsBurning
-      && pile.inventory != null
-      && pile.inventory.Count > 0
-      && !pile.inventory[0].Empty
-      && pile.inventory[0].Itemstack?.Collectible.Code.Path == "burden"
-    ) {
+    if (pile.IsBurning && HoldsBurden(pile)) {
       state.BurnTimer++;
       if (state.BurnTimer >= SmexValues.BurdenBurnTime)
         BurnOut(pile);
     }
+  }
+
+  /// <summary>
+  /// Moves a burden pile's vanilla burn clock to now, so the burning tick that follows takes no
+  /// layer from it. Any other pile is left to burn down as vanilla does.
+  /// </summary>
+  internal static void OnBurningTick(BlockEntityCoalPile pile) {
+    if (HoldsBurden(pile))
+      _burnStartTotalHours(pile) = pile.Api.World.Calendar.TotalHours;
   }
 
   internal static void SaveTo(BlockEntityCoalPile pile, ITreeAttribute tree) =>
@@ -92,8 +110,8 @@ public static class BurdenPiles {
 /// <summary>
 /// Harmony hooks wiring <see cref="BurdenPiles"/> into the vanilla coal pile's
 /// lifecycle: a server-side burn-check tick (registered through the block
-/// entity, so it is cleaned up on removal/unload automatically) and persistence
-/// of the burn timer.
+/// entity, so it is cleaned up on removal/unload automatically), a hold on the
+/// vanilla burning tick's layer loss for burden, and persistence of the burn timer.
 /// </summary>
 [HarmonyPatch(typeof(BlockEntityCoalPile))]
 public static class CoalPileBurdenPatches {
@@ -109,6 +127,11 @@ public static class CoalPileBurdenPatches {
         1000
       );
   }
+
+  [HarmonyPrefix]
+  [HarmonyPatch("OnBurningTickServer")]
+  public static void BurningTickPrefix(BlockEntityCoalPile __instance) =>
+    BurdenPiles.OnBurningTick(__instance);
 
   [HarmonyPostfix]
   [HarmonyPatch(nameof(BlockEntityCoalPile.ToTreeAttributes))]
