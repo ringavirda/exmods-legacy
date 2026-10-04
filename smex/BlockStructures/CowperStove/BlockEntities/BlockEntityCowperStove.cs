@@ -156,7 +156,6 @@ public class BlockEntityCowperStove : BlockEntityMultiblockMachine {
       }
     }
 
-    float airVol = 0f;
     float airTemp = _ambientTemperature;
     string inGasType = "Air";
 
@@ -165,13 +164,10 @@ public class BlockEntityCowperStove : BlockEntityMultiblockMachine {
       Api.World.BlockAccessor.GetBlockEntity(passthroughPos)
       as BlockEntityPipePassthrough;
 
-    // Raw gas actually sitting in the passthrough's run. airVol below rounds this UP to a full intake
-    // for discharge throughput, so keep the raw figure for the "is air genuinely flowing" test.
     float passthroughVol = passthrough?.Volume ?? 0f;
     if (passthroughVol > 0) {
       airTemp = passthrough!.Temperature;
       inGasType = passthrough.Medium;
-      airVol = passthroughVol <= _intakeVolume ? _intakeVolume : passthroughVol;
     }
 
     string newStatus = Lang.Get("smex:cowperstove-status-idle");
@@ -217,20 +213,15 @@ public class BlockEntityCowperStove : BlockEntityMultiblockMachine {
           ),
           "Exhaust"
         );
-    } else if (airVol > 0) {
+    } else if (passthroughVol > 0) {
       newStatus = Lang.Get("smex:cowperstove-status-heating", inGasType);
       float tempDiff = _internalTemperature - airTemp;
-      if (tempDiff > 0) {
+      if (tempDiff > 0)
         airTemp = _internalTemperature;
-        // Scaled by the air actually drawn through the brickwork: a full intake costs the rated
-        // heat, a trickle proportionally less. The measure is the stove's own intake, never the
-        // cold run's standing volume - that is a stored quantity, and a long or pressurised main
-        // holds many intakes' worth of it, which would make main length set the discharge rate.
-        float drawn = System.Math.Min(passthroughVol, _intakeVolume);
-        float flowShare = _intakeVolume > 0f ? drawn / _intakeVolume : 1f;
-        _internalTemperature -= tempDiff * _coolingSpeedAir * flowShare * dt;
-      }
 
+      // The stove offers the hot outlet everything standing in the passthrough and takes from the
+      // passthrough exactly what the outlet accepted.
+      float passed = 0f;
       BlockPos hotAirOutletPos = GetGlobalPos(0, 1, 0);
       if (
         Api.World.BlockAccessor.GetBlockEntity(hotAirOutletPos)
@@ -247,14 +238,26 @@ public class BlockEntityCowperStove : BlockEntityMultiblockMachine {
           passthrough != null
             ? GasLine.Pressure(passthroughRun) + own
             : 1f;
-        var accepted = hotOutlet.TryProduce(
-          airVol,
+        PipeNetwork? hotRun = this.NetworkAt<PipeNetwork>(hotAirOutletPos);
+        float hotBefore = hotRun?.State?.Volume ?? 0f;
+        hotOutlet.TryProduce(
+          passthroughVol,
           airTemp,
           inGasType,
           maxOutputPressure: inputPressure > 1f ? inputPressure : 1f
         );
-        if (accepted && passthrough != null)
-          passthrough.TryConsume(_intakeVolume);
+        passed = System.Math.Max(0f, (hotRun?.State?.Volume ?? 0f) - hotBefore);
+        if (passed > 0f)
+          passthrough!.TryConsume(passed);
+      }
+
+      if (tempDiff > 0) {
+        // Scaled by the air that passed through the brickwork this second against the rated intake:
+        // a full intake or more costs the rated heat, a trickle proportionally less, and a second
+        // the outlet refused costs none.
+        float drawn = System.Math.Min(passed, _intakeVolume);
+        float flowShare = _intakeVolume > 0f ? drawn / _intakeVolume : 1f;
+        _internalTemperature -= tempDiff * _coolingSpeedAir * flowShare * dt;
       }
     }
 
