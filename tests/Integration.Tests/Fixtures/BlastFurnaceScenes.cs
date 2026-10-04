@@ -32,7 +32,10 @@ internal sealed class BlastFurnaceRig {
   private float _blastTemp = -1f;
   private float _blastVolume = 150f;
 
-  public BlastFurnaceRig(int burden = 400) {
+  /// <param name="burden">Burden loaded into the hearth.</param>
+  /// <param name="pileSize">Burden per pile, filling the hearth from its floor up; 0 splits the
+  /// charge across two piles.</param>
+  public BlastFurnaceRig(int burden = 400, int pileSize = 0) {
     World = new TestWorld();
     World.RegisterItem("game:ingot-iron", 1500f);
     World.RegisterItem("smex:slag");
@@ -61,9 +64,12 @@ internal sealed class BlastFurnaceRig {
     // so the tick reads the tuyeres we place below.
     ReflectionHelpers.Invoke(Furnace, "ScanForOutlets");
 
-    // Hearth piles holding the burden charge (split across two cells in the hearth box), lit.
-    BurdenPile(_pos.AddCopy(0, 0, 2), burden / 2);
-    BurdenPile(_pos.AddCopy(0, -1, 2), burden - burden / 2);
+    if (pileSize > 0)
+      FillHearth(burden, pileSize);
+    else {
+      BurdenPile(_pos.AddCopy(0, 0, 2), burden / 2);
+      BurdenPile(_pos.AddCopy(0, -1, 2), burden - burden / 2);
+    }
 
     // Tuyeres: a pipe at each tuyere cell, each its own blast network.
     _tuyeres =
@@ -71,6 +77,27 @@ internal sealed class BlastFurnaceRig {
       Tuyere(_pos.AddCopy(0, -2, 1), 20),
       Tuyere(_pos.AddCopy(0, -2, 3), 21),
     ];
+  }
+
+  private void FillHearth(int burden, int pileSize) {
+    BlockPos[] ports =
+    [
+      _pos.AddCopy(0, -2, 1),
+      _pos.AddCopy(0, -2, 3),
+      _pos.AddCopy(0, 3, 1),
+      _pos.AddCopy(0, 3, 2),
+      _pos.AddCopy(0, 3, 3),
+    ];
+    for (int y = -3; y <= 3 && burden > 0; y++)
+      for (int x = -1; x <= 1 && burden > 0; x++)
+        for (int z = 1; z <= 3 && burden > 0; z++) {
+          BlockPos pos = _pos.AddCopy(x, y, z);
+          if (System.Array.Exists(ports, p => p.Equals(pos)))
+            continue;
+          int units = System.Math.Min(pileSize, burden);
+          BurdenPile(pos, units);
+          burden -= units;
+        }
   }
 
   private void BurdenPile(BlockPos pos, int units) {
@@ -280,6 +307,65 @@ internal sealed class BlastFurnaceRig {
     return this;
   }
 
+  /// <summary>Real seconds per game hour at the default calendar speed: 48 minutes a day.</summary>
+  public const double SecondsPerGameHour = 120.0;
+
+  /// <summary>Burden standing in the hearth piles now, counted off the piles themselves.</summary>
+  public int HearthBurden {
+    get {
+      int total = 0;
+      foreach (var pos in _pilePositions)
+        if (
+          World.Api.World.BlockAccessor.GetBlockEntity(pos)
+          is BlockEntityCoalPile pile
+        )
+          foreach (var slot in pile.inventory)
+            if (
+              !slot.Empty && slot.Itemstack.Collectible.Code.Path == "burden"
+            )
+              total += slot.StackSize;
+      return total;
+    }
+  }
+
+  /// <summary>Hearth piles still standing.</summary>
+  public int PileCount {
+    get {
+      int count = 0;
+      foreach (var pos in _pilePositions)
+        if (
+          World.Api.World.BlockAccessor.GetBlockEntity(pos)
+          is BlockEntityCoalPile
+        )
+          count++;
+      return count;
+    }
+  }
+
+  /// <summary>
+  /// Runs <paramref name="seconds"/> one-second furnace ticks with the game clock moving at
+  /// <see cref="SecondsPerGameHour"/>, the hearth piles' own burn tick and every other block-entity
+  /// listener firing on their intervals. <paramref name="eachSecond"/> runs before each tick.
+  /// </summary>
+  public BlastFurnaceRig RunOnGameClock(
+    int seconds,
+    System.Action<BlastFurnaceRig>? eachSecond = null
+  ) {
+    foreach (var pos in _pilePositions)
+      if (
+        World.Api.World.BlockAccessor.GetBlockEntity(pos)
+        is BlockEntityCoalPile { IsBurning: true } pile
+      )
+        pile.RegisterServerTickListener();
+    for (int i = 0; i < seconds; i++) {
+      eachSecond?.Invoke(this);
+      World.AdvanceHours(1.0 / SecondsPerGameHour);
+      Tick(1);
+      World.AdvanceBlockEntityTime(1000);
+    }
+    return this;
+  }
+
   #region Fast-forward + accessors
 
   public BlastFurnaceRig SetState(BlastFurnaceState s) {
@@ -322,6 +408,8 @@ internal sealed class BlastFurnaceRig {
 
   public float MoltenIron =>
     (float)ReflectionHelpers.GetField(Furnace, "_moltenIron")!;
+  public float MoltenSlag =>
+    (float)ReflectionHelpers.GetField(Furnace, "_moltenSlag")!;
   public int CanalIron => Canal?.CellAmount ?? 0;
 
   /// <summary>The hearth ceiling the last tick computed from the blast it was fed.</summary>
