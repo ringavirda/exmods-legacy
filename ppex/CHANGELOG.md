@@ -32,6 +32,9 @@ its 1.22 build does not work beside the new library. A part-built machine keeps 
   feed from flashing in every session; before, the boiler caught the main full at the pump's head
   whenever the pump ran after both the engine and the valve. A line that gains or loses a pipe
   reads its fill until the machines on it run again.
+- **The engine's beam turns with the Mechanical Power Generator's axle in every facing.** A Watt
+  or Cornish engine facing north or east drove its rod round the crank against the axle beside it.
+  Engines facing south or west already turned with it and are unchanged.
 
 ### Changed
 
