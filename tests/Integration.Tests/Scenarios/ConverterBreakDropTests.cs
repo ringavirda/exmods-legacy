@@ -215,8 +215,12 @@ public class ConverterBreakDropTests {
       plant.Rig.World.World,
       plant.VesselPos,
       plant.VesselPos.AddCopy(3, 0, 0),
+#if GAME_GE_1_21
       EnumBlastType.RockBlast,
       null
+#else
+      EnumBlastType.RockBlast
+#endif
     );
 
     Assert.InRange(

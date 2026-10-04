@@ -82,6 +82,7 @@ public partial class BlockConverterBessemer
 
   // An explosion removes the vessel without OnBlockBroken, so the solidified charge is collected and
   // spawned here as a break would.
+#if GAME_GE_1_21
   public override void OnBlockExploded(
     IWorldAccessor world,
     BlockPos pos,
@@ -89,9 +90,7 @@ public partial class BlockConverterBessemer
     EnumBlastType blastType,
     string ignitedByPlayerUid
   ) {
-    ItemStack? solidifiedDrops = (
-      world.BlockAccessor.GetBlockEntity(pos) as BlockEntityConverterBessemer
-    )?.CollectBreakDrops();
+    ItemStack? solidifiedDrops = CollectSolidifiedDrops(world, pos);
     base.OnBlockExploded(
       world,
       pos,
@@ -99,8 +98,36 @@ public partial class BlockConverterBessemer
       blastType,
       ignitedByPlayerUid
     );
-    if (solidifiedDrops != null && world.Side == EnumAppSide.Server)
-      world.SpawnItemEntity(solidifiedDrops, pos.ToVec3d().Add(0.5, 0.5, 0.5));
+    SpawnSolidifiedDrops(world, pos, solidifiedDrops);
+  }
+#else
+  public override void OnBlockExploded(
+    IWorldAccessor world,
+    BlockPos pos,
+    BlockPos explosionCenter,
+    EnumBlastType blastType
+  ) {
+    ItemStack? solidifiedDrops = CollectSolidifiedDrops(world, pos);
+    base.OnBlockExploded(world, pos, explosionCenter, blastType);
+    SpawnSolidifiedDrops(world, pos, solidifiedDrops);
+  }
+#endif
+
+  private static ItemStack? CollectSolidifiedDrops(
+    IWorldAccessor world,
+    BlockPos pos
+  ) =>
+    (
+      world.BlockAccessor.GetBlockEntity(pos) as BlockEntityConverterBessemer
+    )?.CollectBreakDrops();
+
+  private static void SpawnSolidifiedDrops(
+    IWorldAccessor world,
+    BlockPos pos,
+    ItemStack? drops
+  ) {
+    if (drops != null && world.Side == EnumAppSide.Server)
+      world.SpawnItemEntity(drops, pos.ToVec3d().Add(0.5, 0.5, 0.5));
   }
 
   // The vessel is spawned by the control block, never placed from an item, so there is no vessel item
