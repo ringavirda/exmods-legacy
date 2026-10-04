@@ -98,7 +98,8 @@ harder or charge less, and check the table above.
 **"To much solidified residue! Break the converter to clear it".** The charge froze. Under 480
 units, a fifth of the vessel, it can be chiselled out of the upper hatch once it is hardened;
 above that the vessel has to be broken. Breaking returns all of its construction materials, the
-metal as bits less a few units mangled in the process, and any unmelted scrap in kind.
+metal as bits less a few units mangled in the process, and any unmelted scrap in kind. A charge
+that is still molten when the vessel breaks is lost, so let it harden first.
 
 **The vessel will not go up.** It needs one large gear and eight iron or steel rods in your hotbar,
 and a clear 3x3x3 volume: "The converter cannot be placed! Clear the 3x3x3 space for it first."
