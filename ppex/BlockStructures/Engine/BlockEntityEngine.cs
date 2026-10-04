@@ -310,11 +310,14 @@ public abstract class BlockEntityEngine : BlockEntityProductionMachine {
     // Fixed steam draw while engaged - inlet pressure only gates on/off. Power scales with
     // the steam the network can actually supply, so a starved line yields less power.
     float demand = SubmachineBE?.PowerDemand ?? 0f;
-    bool engaged = pressure >= EngagePressure && demand > 0f;
+    float want = RunSteamRate * demand * dt;
+    // The main is read as settled after this engine's draw; a running engine adds that draw back
+    // (as a pressure over the run's capacity) so it does not stop on the dip its own steam makes.
+    float own = _running && inlet?.State is { MaxVolume: > 0f } st ? want / st.MaxVolume : 0f;
+    bool engaged = pressure + own >= EngagePressure && demand > 0f;
     float power = 0f;
 
     if (engaged && inlet != null) {
-      float want = RunSteamRate * demand * dt;
       float used = inlet.TryConsumeGas(want, ba);
       float frac = want > 0f ? used / want : 0f;
       power = RunPower * demand * frac;

@@ -123,6 +123,38 @@ public class GasReadingTickOrderTests {
     Assert.Equal((3f - 2.5f) * mainMax, plant.DrainVolume, 2);
   }
 
+  // The main stands under the engage pressure by less than the engine's own draw over the run's
+  // capacity. Fails when a running engine judges the settled figure alone (pressure >= EngagePressure
+  // in BlockEntityEngine.OnProductionTick): it stops on the dip its own steam made.
+  [Fact]
+  public void A_running_engine_stays_engaged_while_its_own_draw_holds_the_main_under_the_engage_pressure() {
+    var (_, plant, main) = EnginePlant();
+    ProductionTick(plant.Engine);
+    Assert.True(plant.Engine.IsRunning, "the engine never started");
+    float engage = PpexValues.WattEngineEngagePressure;
+    float own = PpexValues.WattEngineSteamRate / Max(main);
+    Settle(main, "Steam", engage - 0.5f * own, 150f);
+
+    ProductionTick(plant.Engine);
+
+    Assert.Equal(engage - 0.5f * own, plant.InletPressure, 3);
+    Assert.True(plant.Engine.IsRunning, "the engine stopped on its own dip");
+  }
+
+  // Fails when the engage figure is lowered for an engine that is not running (the _running guard on
+  // the own draw in BlockEntityEngine.OnProductionTick): an idle engine starts under the engage pressure.
+  [Fact]
+  public void An_idle_engine_still_needs_the_full_engage_pressure() {
+    var (_, plant, main) = EnginePlant();
+    float engage = PpexValues.WattEngineEngagePressure;
+    float own = PpexValues.WattEngineSteamRate / Max(main);
+    Settle(main, "Steam", engage - 0.5f * own, 150f);
+
+    ProductionTick(plant.Engine);
+
+    Assert.False(plant.Engine.IsRunning, "the engine started under its engage pressure");
+  }
+
   /// <summary>A fired boiler with a chimney on its exhaust outlet, primed to boil.</summary>
   private static (BoilerFixture, PipeNetwork) ChimneyedBoiler() {
     var scene = new Scene().Network("pipe", s => new PipeNetwork(s));
