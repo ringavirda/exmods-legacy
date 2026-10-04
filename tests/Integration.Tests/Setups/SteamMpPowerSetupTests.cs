@@ -24,11 +24,22 @@ public class SteamMpPowerSetupTests(ITestOutputHelper output) {
   /// <summary>The steam run's flow the drawing prints (L/s).</summary>
   private const double DrawnSteamFlow = 32.0;
 
+#if GAME_GE_1_22
   /// <summary>The axle line's speed the drawing prints.</summary>
   private const double DrawnSpeed = 0.391;
 
   /// <summary>What the pump lifts in the drawing (L/s).</summary>
   private const double DrawnPumpOutput = 7.81;
+#else
+  // Before 1.22 a toggle working a hammer adds 5 exp(2.8 speed - 5) to its 0.125, so the line
+  // carries more load and turns slower.
+
+  /// <summary>The axle line's speed the drawing prints.</summary>
+  private const double DrawnSpeed = 0.336;
+
+  /// <summary>What the pump lifts in the drawing (L/s).</summary>
+  private const double DrawnPumpOutput = 6.71;
+#endif
 
   /// <summary>What the boiler draws from its feed main in the drawing (L/s).</summary>
   private const double DrawnFeed = 2.0;
