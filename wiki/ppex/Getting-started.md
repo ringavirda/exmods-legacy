@@ -111,8 +111,8 @@ Now the boiler no longer needs filling by hand.
 ## 7. The whole plant
 
 The figure below is the plant this page builds, played from a test run of the current code. Each
-machine links to its own page and shows its state, each pipe carries its rate, and the legend under
-the drawing names the colours. The steps build it in the order of the sections above.
+machine links to its own page and shows its state, each pipe run carries its rate, and the legend
+under the drawing names the colours. The steps build it in the order of the sections above.
 
 ::plant{page="Starter steam power setup" recording="starter-steam-power"}
 
