@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using ExpandedLib.Industry.Pipes;
+using ExpandedLib.Structures;
 using ExpandedLib.Testing;
 using Integration.Tests.Saves;
 using Newtonsoft.Json.Linq;
@@ -266,6 +267,7 @@ internal sealed class SteamMpPowerPlant {
     Line.nodes[generatorPos.Copy()] = generatorDrive;
     Scene.Machine(pumpPos, pumpBlock, Pump);
     RccFake.Complete(Pump);
+    PlaceFillers(pumpBlock, pumpPos);
     MechPower.Attach(Pump, _drive, pumpOnShaft ? Line : null);
     if (pumpOnShaft)
       Line.nodes[pumpPos.Copy()] = _drive;
@@ -474,6 +476,25 @@ internal sealed class SteamMpPowerPlant {
     (float)ReflectionHelpers.GetField(valve, "_lastVentVolume")!;
 
   private int NextId() => _nextId++;
+
+  /// <summary>
+  /// Places <paramref name="block"/>'s footprint fillers round <paramref name="pos"/> through its own
+  /// <c>OnBlockPlaced</c>, which marks the source and delivery port cells, as placing it in game does.
+  /// </summary>
+  private void PlaceFillers(Block block, BlockPos pos) {
+    var filler = TestBlocks.Configure(
+      new BlockStructureFiller(),
+      StructureFillers.FillerCode.ToString(),
+      NextId()
+    );
+    filler.EntityClass = nameof(BlockEntityStructureFiller);
+    Scene.World.Register(filler);
+    Scene.World.RegisterBlockEntityFactory(
+      filler.EntityClass,
+      () => new BlockEntityStructureFiller()
+    );
+    block.OnBlockPlaced(Scene.World.World, pos);
+  }
 
   /// <summary>A vanilla axle along the line at <paramref name="pos"/>, joined to it.</summary>
   private void Axle(BlockPos pos) {
