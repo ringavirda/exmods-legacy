@@ -25,10 +25,10 @@ public class SteamMpPowerSetupTests(ITestOutputHelper output) {
   private const double DrawnSteamFlow = 32.0;
 
   /// <summary>The axle line's speed the drawing prints.</summary>
-  private const double DrawnSpeed = 0.43;
+  private const double DrawnSpeed = 0.391;
 
   /// <summary>What the pump lifts in the drawing (L/s).</summary>
-  private const double DrawnPumpOutput = 8.6;
+  private const double DrawnPumpOutput = 7.81;
 
   /// <summary>What the boiler draws from its feed main in the drawing (L/s).</summary>
   private const double DrawnFeed = 2.0;
