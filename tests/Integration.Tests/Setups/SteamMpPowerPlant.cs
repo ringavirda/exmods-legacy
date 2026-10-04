@@ -1,56 +1,66 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using ExpandedLib.Industry.Pipes;
 using ExpandedLib.Testing;
+using Integration.Tests.Saves;
+using Newtonsoft.Json.Linq;
 using PipesAndPowerExpanded;
 using PipesAndPowerExpanded.BlockNetworkPipe.BlockEntities;
 using PipesAndPowerExpanded.BlockNetworkPipe.Blocks;
 using PipesAndPowerExpanded.BlockStructures.Engine.BlockEntities;
 using PipesAndPowerExpanded.BlockStructures.Engine.Blocks;
+using PipesAndPowerExpanded.BlockStructures.MpPump.BlockEntities;
+using PipesAndPowerExpanded.BlockStructures.MpPump.Blocks;
 using PipesAndPowerExpanded.Tests;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
+using Vintagestory.GameContent.Mechanics;
+using AssetLocation = Vintagestory.API.Common.AssetLocation;
+using Block = Vintagestory.API.Common.Block;
 using BlockEntity = Vintagestory.API.Common.BlockEntity;
+using Item = Vintagestory.API.Common.Item;
+using ItemStack = Vintagestory.API.Common.ItemStack;
 using BlockPipePassthrough = PipesAndPowerExpanded.BlockNetworkPipe.Blocks.BlockPipePassthrough;
 using BoilerState = PipesAndPowerExpanded.BlockStructures.Boiler.BlockEntityBoiler.BoilerState;
 
 namespace Integration.Tests.Setups;
 
 /// <summary>
-/// The starter steam power setup as the wiki draws it, every machine under its shipped code: a fired
-/// Cornish boiler with a chimney on its exhaust, its steam main to a Watt engine turning a fluid pump,
-/// a 3.5 atm relief valve on the steam main, a pond intake under the pump, and the feed main from the
-/// pump and the engine's condensate back into the boiler with a 0.5 atm relief valve. Machines are
-/// built in tick order, the engine, the pump and the water valve last, unless <see cref="Slots"/>
-/// names another order. Each second is recorded under the drawing's ids and kept as a <see cref="Second"/>.
+/// The steam MP power setup as the wiki draws it, every machine under its shipped code: the starter's
+/// fired Cornish boiler, chimney, steam main and 3.5 atm relief valve, its Watt engine turning an MP
+/// generator, and an axle line east from the generator through <see cref="Hammers"/> toggles, each
+/// working a helve hammer, to a mechanical fluid pump at its end. The pump lifts a pond intake into
+/// the feed main, which takes the engine's condensate into the boiler past a 0.5 atm relief valve.
+/// The axle line is one vanilla <see cref="MechanicalNetwork"/> joined by hand, stepped as the game's
+/// mechanical power tick steps it after each second's block-entity and pipe ticks. Machines are built
+/// in tick order, the engine, the generator, the pump and the water valve last, unless
+/// <see cref="Slots"/> names another order.
 /// </summary>
-internal sealed class StarterSteamPowerPlant {
+internal sealed class SteamMpPowerPlant {
   /// <summary>The file name of the setup's recording.</summary>
-  public const string Setup = "starter-steam-power";
+  public const string Setup = "steam-mp-power";
 
-  /// <summary>Gate of the steam main's relief valve (atm).</summary>
-  public const float SteamGate = 3.5f;
+  /// <summary>Helve hammers on the axle line.</summary>
+  public const int Hammers = 4;
 
-  /// <summary>Gate of the feed main's relief valve (atm).</summary>
-  public const float WaterGate = 0.5f;
-
-  /// <summary>Water poured into the boiler before it is fired (L), a bucket pour's limit.</summary>
-  public const float PrimeWater = 500f;
+  /// <summary>Server ticks of the mechanical power system per second (20 ms each).</summary>
+  private const int MpTicksPerSecond = 50;
 
   /// <summary>One second of the run, read after its tick.</summary>
   public readonly record struct Second(
     int At,
     bool Choked,
-    bool PileBurning,
     float BoilerPressure,
     float Water,
     int PipesLost,
     bool EngineBroken,
     bool EngineRunning,
-    float SteamPressure,
     float InletPressure,
-    float Feed
+    float Speed,
+    float PumpOutput
   );
 
   public readonly Scene Scene = new Scene().Network(
@@ -59,42 +69,36 @@ internal sealed class StarterSteamPowerPlant {
   );
   public readonly BoilerFixture Boiler;
   public readonly BlockEntityEngineWatt Engine;
-  public readonly BlockEntityEngineFluidPump Pump;
+  public readonly BlockEntityEngineMpGenerator Generator;
+  public readonly BlockEntityMpFluidPump Pump;
   public readonly BlockEntityFluidIntake Intake;
-  public readonly BlockEntityPressureValve? SteamValve;
+  public readonly BlockEntityPressureValve SteamValve;
   public readonly BlockEntityPressureValve WaterValve;
+
+  /// <summary>The axle line, from the generator to the pump.</summary>
+  public readonly MechanicalNetwork Line = new();
 
   /// <summary>Every second run so far, from 0.</summary>
   public readonly List<Second> Seconds = [];
 
+  private readonly BEBehaviorMpPumpDrive _drive;
+  private readonly List<BEBehaviorMPToggle> _toggles = [];
   private readonly BlockPos _exhaust;
   private readonly BlockPos _steam;
   private readonly BlockPos _feed;
   private readonly BlockPos _pond;
   private readonly List<BlockPos> _pipes = [];
   private readonly List<(BlockPos Pos, string Code)> _placed = [];
+  private readonly List<(BlockPos Pos, string Code)> _line = [];
   private int _nextId = 200;
+  private long _mpTick;
   private SetupRecording? _recording;
   private float _lastWater;
-
-  /// <summary>The machines <see cref="Slots"/> fires last, in order; a null entry is the network
-  /// tick.</summary>
+  private float _feedDraw;
   private BlockEntity?[]? _slots;
 
-  /// <summary>Water (L) the boiler drew from its feed main in the last second: the change in its
-  /// water plus what it boiled.</summary>
-  private float _feedDraw;
-
-  /// <param name="chimney">A chimney on the exhaust outlet; without one the outlet is open on top.</param>
-  /// <param name="steamValve">The steam main's relief valve; without one its cell is capped.</param>
-  /// <param name="openEnd">A pipe on the steam main open to air on its north face.</param>
-  /// <param name="waterGate">Gate of the feed main's relief valve (atm).</param>
-  public StarterSteamPowerPlant(
-    bool chimney = true,
-    bool steamValve = true,
-    bool openEnd = false,
-    float waterGate = WaterGate
-  ) {
+  /// <param name="pumpOnShaft">The pump's drive joined to the axle line; without it the pump stands.</param>
+  public SteamMpPowerPlant(bool pumpOnShaft = true) {
     Scene.World.BreakRunsBlockHooks = false;
 
     Boiler = new BoilerFixture(Scene, new BlockPos(0, 8, 0));
@@ -105,8 +109,7 @@ internal sealed class StarterSteamPowerPlant {
     Scene.World.Place(_exhaust, outletBlock, outlet);
     Scene.World.Initialize(outlet);
     _placed.Add((_exhaust, outletBlock.Code.ToString()));
-    if (chimney)
-      Scene.Block(_exhaust.UpCopy(), PpexScenes.Chimney(NextId()));
+    Scene.Block(_exhaust.UpCopy(), PpexScenes.Chimney(NextId()));
 
     // Steam main: up off the boiler's port, east, down to the engine's inlet on the ground. The
     // port filler under the first pipe is a cap here.
@@ -116,20 +119,15 @@ internal sealed class StarterSteamPowerPlant {
     BlockPos foot = new(corner.X, Boiler.Be.Pos.Y, corner.Z);
     BlockPos inlet = foot.EastCopy();
     Scene.Block(_steam.DownCopy(), PpexScenes.Cap(NextId()));
-    var steamMain = new Main()
-      .Open(_steam, BlockFacing.DOWN)
-      .Lay(_steam, corner, foot, inlet)
-      .Open(tee, BlockFacing.SOUTH)
-      .Open(inlet, BlockFacing.NORTH);
-    if (openEnd)
-      steamMain.Open(tee, BlockFacing.NORTH);
-    Place(steamMain);
-    BlockPos steamValvePos = tee.SouthCopy();
-    if (steamValve) {
-      SteamValve = NewValve(steamValvePos, "ns");
-      Install(SteamValve, SteamGate);
-    } else
-      Scene.Block(steamValvePos, PpexScenes.Cap(NextId()));
+    Place(
+      new StarterSteamPowerPlant.Main()
+        .Open(_steam, BlockFacing.DOWN)
+        .Lay(_steam, corner, foot, inlet)
+        .Open(tee, BlockFacing.SOUTH)
+        .Open(inlet, BlockFacing.NORTH)
+    );
+    SteamValve = NewValve(tee.SouthCopy(), "ns");
+    Install(SteamValve, StarterSteamPowerPlant.SteamGate);
 
     BlockPos enginePos = inlet.NorthCopy();
     var engineBlock = TestBlocks.Configure(
@@ -143,21 +141,59 @@ internal sealed class StarterSteamPowerPlant {
       Block = engineBlock,
     };
 
-    BlockPos pumpPos = engineBlock.SubmachinePos(enginePos);
-    var pumpBlock = TestBlocks.Configure(
-      new BlockEngineFluidPump(),
-      "ppex:enginefluidpump-east",
+    BlockPos generatorPos = engineBlock.SubmachinePos(enginePos);
+    var generatorBlock = TestBlocks.Configure(
+      new BlockEngineMPGenerator(),
+      "ppex:enginempgenerator-east",
       NextId(),
       ("side", "east")
     );
-    Pump = new BlockEntityEngineFluidPump {
-      Pos = pumpPos.Copy(),
-      Block = pumpBlock,
+    Generator = new BlockEntityEngineMpGenerator {
+      Pos = generatorPos.Copy(),
+      Block = generatorBlock,
     };
 
-    // Pond run: a bend under the pump, the intake beside it on the pond, facing the bend.
-    _pond = pumpPos.DownCopy();
-    Place(new Main().Open(_pond, BlockFacing.UP).Open(_pond, BlockFacing.EAST));
+    // Axle line: east off the generator, a toggle on every other cell with its helve hammer to the
+    // south, the pump at the far end with its drive face to the line.
+    BlockPos at = generatorPos.EastCopy();
+    for (int h = 0; h < Hammers; h++) {
+      Axle(at);
+      at = at.EastCopy();
+      Toggle(at);
+      at = at.EastCopy();
+    }
+    Axle(at);
+    BlockPos pumpPos = at.EastCopy();
+    var pumpBlock = TestBlocks.Configure(
+      new BlockMpFluidPump(),
+      "ppex:mpfluidpump-north",
+      NextId(),
+      ("side", "north")
+    );
+    pumpBlock.Attributes = new JsonObject(
+      JObject.Parse(
+        File.ReadAllText(
+          Path.Combine(
+            SaveGoldens.RepoRoot(),
+            "ppex",
+            "assets",
+            "ppex",
+            "blocktypes",
+            "mpfluidpump.json"
+          )
+        )
+      )["attributes"]
+    );
+    Pump = new BlockEntityMpFluidPump { Pos = pumpPos.Copy(), Block = pumpBlock };
+    _drive = new BEBehaviorMpPumpDrive(Pump);
+
+    // Pond run: a bend under the pump's source port, the intake beside it on the pond, facing it.
+    _pond = pumpBlock.SourceWorldPos(pumpPos).AddCopy(BlockMpFluidPump.SourceFace);
+    Place(
+      new StarterSteamPowerPlant.Main()
+        .Open(_pond, BlockMpFluidPump.SourceFace.Opposite)
+        .Open(_pond, BlockFacing.EAST)
+    );
     BlockPos intakePos = _pond.EastCopy();
     var intakeBlock = TestBlocks.Configure(
       new BlockFluidIntake(),
@@ -179,34 +215,40 @@ internal sealed class StarterSteamPowerPlant {
       Scene.World.Networks
     );
 
-    // Feed main: from the engine's condensate outlet past the pump's left face, down a course,
-    // south along the boiler's east side and round behind the firebox, then north through the
-    // structure's two fireclay passthroughs to its bend under the master cell, the feed face. The
-    // water valve hangs off it to the north.
-    BlockFacing left = ExpandedLib.Helpers.ExOrientation.RotateFacing(
-      BlockFacing.WEST,
-      ExpandedLib.Helpers.ExOrientation.AngleFromSide("east")
-    );
+    // Feed main: from the pump's delivery port west over the axle line and down beside the
+    // generator to the water valve's tee,
+    // then as the starter's, down a course, south along the boiler's east side and round behind the
+    // firebox, north through the structure's two fireclay passthroughs to its feed face. The
+    // engine's condensate leaves south of the axle line and joins it under the steam inlet.
+    BlockPos delivery = pumpBlock.OutletWorldPos(pumpPos).AddCopy(pumpBlock.OutputFace);
+    BlockPos waterTee = new(generatorPos.X - 1, generatorPos.Y, delivery.Z);
     BlockPos condensate = enginePos.AddCopy(engineBlock.WaterOutletFace);
-    BlockPos pumpOut = pumpPos.AddCopy(left);
-    BlockPos waterTee = pumpOut.WestCopy();
+    BlockPos under = new(condensate.X, condensate.Y - 1, inlet.Z);
     _feed = Boiler.Be.Pos.DownCopy();
     BlockPos behind = _feed.AddCopy(0, 0, 3);
+    BlockPos east = new(waterTee.X, _feed.Y, delivery.Z);
     Place(
-      new Main()
+      new StarterSteamPowerPlant.Main()
         .Lay(
-          condensate,
-          new BlockPos(condensate.X, condensate.Y, pumpOut.Z),
-          pumpOut,
-          new BlockPos(_feed.X + 1, pumpOut.Y, pumpOut.Z),
-          new BlockPos(_feed.X + 1, _feed.Y, pumpOut.Z),
-          new BlockPos(_feed.X + 2, _feed.Y, pumpOut.Z),
-          new BlockPos(_feed.X + 2, _feed.Y, behind.Z),
+          delivery,
+          new BlockPos(generatorPos.X, delivery.Y, delivery.Z),
+          new BlockPos(generatorPos.X, waterTee.Y, delivery.Z),
+          waterTee,
+          waterTee.WestCopy(),
+          new BlockPos(waterTee.X - 1, _feed.Y, delivery.Z),
+          east,
+          new BlockPos(east.X, _feed.Y, behind.Z),
           behind,
           _feed
         )
+        .Lay(
+          condensate,
+          new BlockPos(condensate.X, condensate.Y, inlet.Z),
+          under,
+          new BlockPos(east.X, under.Y, under.Z)
+        )
+        .Open(delivery, pumpBlock.OutputFace.Opposite)
         .Open(condensate, engineBlock.WaterOutletFace.Opposite)
-        .Open(pumpOut, left.Opposite)
         .Open(waterTee, BlockFacing.NORTH)
         .Open(_feed, BlockFacing.UP),
       _feed,
@@ -217,8 +259,17 @@ internal sealed class StarterSteamPowerPlant {
 
     Scene.Machine(enginePos, engineBlock, Engine);
     RccFake.Complete(Engine);
+    Scene.Machine(generatorPos, generatorBlock, Generator);
+    var generatorDrive = new BEBehaviorEngineMPGenerator(Generator);
+    MechPower.Attach(Generator, generatorDrive, Line);
+    ReflectionHelpers.SetField(Generator, "_mp", generatorDrive);
+    Line.nodes[generatorPos.Copy()] = generatorDrive;
     Scene.Machine(pumpPos, pumpBlock, Pump);
-    Install(WaterValve, waterGate);
+    RccFake.Complete(Pump);
+    MechPower.Attach(Pump, _drive, pumpOnShaft ? Line : null);
+    if (pumpOnShaft)
+      Line.nodes[pumpPos.Copy()] = _drive;
+    Install(WaterValve, StarterSteamPowerPlant.WaterGate);
   }
 
   /// <summary>
@@ -226,6 +277,18 @@ internal sealed class StarterSteamPowerPlant {
   /// and the exhaust outlet. The valves, the intake and the cap under the steam main are not listed.
   /// </summary>
   public IReadOnlyList<(BlockPos Pos, string Code)> Placed => _placed;
+
+  /// <summary>Every axle, toggle and helve hammer the axle line laid, with its vanilla code.</summary>
+  public IReadOnlyList<(BlockPos Pos, string Code)> LineBlocks => _line;
+
+  /// <summary>The axle line's speed, without its sign.</summary>
+  public float Speed => Math.Abs(Line.Speed);
+
+  /// <summary>Resistance the helve hammers put on the line.</summary>
+  public float HammerLoad => _toggles.Sum(t => t.GetResistance());
+
+  /// <summary>Resistance the pump puts on the line while it is on it.</summary>
+  public float PumpLoad => Line.nodes.ContainsValue(_drive) ? _drive.GetResistance() : 0f;
 
   /// <summary>
   /// Records the plant's runs and machines under the drawing's ids, for <paramref name="seconds"/>.
@@ -262,26 +325,46 @@ internal sealed class StarterSteamPowerPlant {
       .Constant("water", "l/s", PpexValues.WattEngineWaterRate)
       .Constant("efficiency", "", PpexValues.SteamEngineEfficiency);
     _recording
-      .Machine("pump", "ppex:enginefluidpump-east")
-      .State(() => PumpDraws ? "drawing" : "idle");
+      .Machine("generator", "ppex:enginempgenerator-east")
+      .State(() => Speed > 0.001f ? "turning" : "idle")
+      .Value("speed", "", () => Speed)
+      .Value("cap", "", () => Engine.ShaftSpeed)
+      .Value("budget", "", () => Engine.MpPowerBudget)
+      .Value("load", "", () => Line.NetworkResistance);
+    for (int h = 0; h < _toggles.Count; h++) {
+      BEBehaviorMPToggle toggle = _toggles[h];
+      _recording
+        .Machine($"hammer-{h + 1}", "game:helvehammerbase-north")
+        .State(() => Speed > 0.001f ? "hammering" : "idle")
+        .Value("load", "", toggle.GetResistance)
+        .Value("power", "", () => toggle.GetResistance() * Speed);
+    }
+    _recording
+      .Machine("pump", "ppex:mpfluidpump-north")
+      .State(() => PumpDraws ? "drawing" : "idle")
+      .Value("speed", "", () => _drive.DriveSpeed)
+      .Value("output", "l/s", () => Pump.OutputPerSecond)
+      .Value("power", "", () => PumpLoad * Speed)
+      .Constant("head", "atm", PpexValues.MpPumpDeliveryPressure)
+      .Constant("load", "", BEBehaviorMpPumpDrive.PumpResistance);
     _recording
       .Machine("intake", "ppex:pipe-fluidintake-w")
       .State(() => PumpDraws ? "drawing" : "idle");
-    if (SteamValve != null)
-      RecordValve("steam-valve", SteamValve);
+    RecordValve("steam-valve", SteamValve);
     RecordValve("water-valve", WaterValve);
     return _recording;
   }
 
   /// <summary>
-  /// Primes the boiler idle with <see cref="PrimeWater"/> and no steam, its pile burning, then runs
-  /// <paramref name="seconds"/> seconds, sampling the recording after each when there is one.
+  /// Primes the boiler idle with the starter's water and no steam, its pile burning, then runs
+  /// <paramref name="seconds"/> seconds, each one the block-entity and pipe ticks and then a second
+  /// of the axle line, sampling the recording after each when there is one.
   /// </summary>
-  public StarterSteamPowerPlant Run(int seconds) {
+  public SteamMpPowerPlant Run(int seconds) {
     Scene.Build();
     if (_slots != null)
       TickSlots.Order(Scene.World, [.. _slots.OfType<BlockEntity>()]);
-    Boiler.Prime(BoilerState.Idle, water: PrimeWater, steam: 0f);
+    Boiler.Prime(BoilerState.Idle, water: StarterSteamPowerPlant.PrimeWater, steam: 0f);
     _lastWater = Water;
     for (int t = 0; t < seconds; t++) {
       float boiled = Boiled();
@@ -289,6 +372,7 @@ internal sealed class StarterSteamPowerPlant {
         Scene.Step(1);
       else
         TickSlots.Step(Scene.World, NetworkSlot());
+      TurnLine();
       float water = Water;
       _feedDraw = water - _lastWater + boiled;
       _lastWater = water;
@@ -297,15 +381,14 @@ internal sealed class StarterSteamPowerPlant {
         new Second(
           t,
           Choked,
-          Pile?.IsBurning == true,
           Boiler.Be.InternalPressure,
           Water,
           _pipes.Count(p => Scene.World.GetBlock(p).Id == 0),
           Engine.IsBroken,
           Engine.IsRunning,
-          SteamRun?.State?.Pressure ?? 0f,
           Engine.InletPressure,
-          _feedDraw
+          Speed,
+          Pump.OutputPerSecond
         )
       );
     }
@@ -317,9 +400,26 @@ internal sealed class StarterSteamPowerPlant {
   /// in that order, and runs the network tick in the place of the null entry among them, or after
   /// all of them when there is none. Taken by <see cref="Run"/>.
   /// </summary>
-  public StarterSteamPowerPlant Slots(params BlockEntity?[] order) {
+  public SteamMpPowerPlant Slots(params BlockEntity?[] order) {
     _slots = order;
     return this;
+  }
+
+  /// <summary>The first second <paramref name="failed"/> holds, or null when none does.</summary>
+  public int? First(Func<Second, bool> failed, int from = 0) =>
+    Seconds.Where(s => s.At >= from && failed(s)).Select(s => (int?)s.At).FirstOrDefault();
+
+  /// <summary>
+  /// One second of vanilla MechanicalNetwork.ServerTick without its client broadcast: the angle
+  /// every tick, the torque and resistance solve every fifth.
+  /// </summary>
+  private void TurnLine() {
+    for (int i = 0; i < MpTicksPerSecond; i++) {
+      _mpTick++;
+      Line.UpdateAngle(Line.Speed * (1f / MpTicksPerSecond) * 50f);
+      if (_mpTick % 5 == 0)
+        Line.updateNetwork(_mpTick);
+    }
   }
 
   private int NetworkSlot() {
@@ -328,15 +428,6 @@ internal sealed class StarterSteamPowerPlant {
       ? int.MaxValue
       : TickSlots.Before(Scene.World, _slots[at + 1]!);
   }
-
-  /// <summary>The first second <paramref name="failed"/> holds, or null when none does.</summary>
-  public int? First(Func<Second, bool> failed, int from = 0) =>
-    Seconds.Where(s => s.At >= from && failed(s)).Select(s => (int?)s.At).FirstOrDefault();
-
-  private PipeNetwork? SteamRun => Scene.NetworkAt<PipeNetwork>(_steam);
-
-  /// <summary>The feed main, from the pump and the engine's condensate outlet into the boiler.</summary>
-  public PipeNetwork FeedRun => Scene.NetworkAt<PipeNetwork>(_feed)!;
 
   private BlockEntityCoalPile? Pile =>
     Scene.EntityAt<BlockEntityCoalPile>(Boiler.Block.FuelWorldPos(Boiler.Be.Pos));
@@ -356,8 +447,7 @@ internal sealed class StarterSteamPowerPlant {
       ? PpexValues.CornishBoilerSteamPerSecond / PpexValues.SteamExpansionFactor
       : 0f;
 
-  private bool PumpDraws =>
-    (bool)ReflectionHelpers.GetField(Pump, "_drawingWater")!;
+  private bool PumpDraws => (bool)ReflectionHelpers.GetField(Pump, "_drawingWater")!;
 
   private bool Draws =>
     Pile?.IsBurning == true
@@ -384,6 +474,59 @@ internal sealed class StarterSteamPowerPlant {
     (float)ReflectionHelpers.GetField(valve, "_lastVentVolume")!;
 
   private int NextId() => _nextId++;
+
+  /// <summary>A vanilla axle along the line at <paramref name="pos"/>, joined to it.</summary>
+  private void Axle(BlockPos pos) {
+    var be = LineEntity(pos, "game:woodenaxle-we", ("rotation", "we"));
+    Join(pos, be, new BEBehaviorMPAxle(be));
+  }
+
+  /// <summary>
+  /// A vanilla toggle on the line at <paramref name="pos"/> with a helve hammer base to its south
+  /// holding a hammer head, so the toggle carries a working hammer's resistance.
+  /// </summary>
+  private void Toggle(BlockPos pos) {
+    var be = LineEntity(pos, "game:woodentoggle-we", ("orientation", "we"));
+    var toggle = new BEBehaviorMPToggle(be) { Api = Scene.World.Api };
+    var sides = (BlockPos[])ReflectionHelpers.GetField(toggle, "sides")!;
+    sides[0] = pos.NorthCopy();
+    sides[1] = pos.SouthCopy();
+    Join(pos, be, toggle);
+    _toggles.Add(toggle);
+
+    BlockPos basePos = pos.SouthCopy();
+    var baseBlock = TestBlocks.Configure(
+      new Block(),
+      "game:helvehammerbase-north",
+      NextId(),
+      ("side", "north")
+    );
+    var hammer = new BEHelveHammer { Pos = basePos.Copy(), Block = baseBlock };
+    Scene.World.Place(basePos, baseBlock, hammer);
+    ReflectionHelpers.SetField(
+      hammer,
+      "hammerStack",
+      new ItemStack(new Item { Code = new AssetLocation("game:helvehammer") })
+    );
+    _line.Add((basePos, baseBlock.Code.ToString()));
+  }
+
+  private BlockEntity LineEntity(
+    BlockPos pos,
+    string code,
+    (string, string) variant
+  ) {
+    var block = TestBlocks.Configure(new Block(), code, NextId(), variant);
+    var be = new BlockEntityGeneric { Pos = pos.Copy(), Block = block };
+    Scene.World.Place(pos, block, be);
+    _line.Add((pos, code));
+    return be;
+  }
+
+  private void Join(BlockPos pos, BlockEntity be, BEBehaviorMPBase node) {
+    MechPower.Attach(be, node, Line);
+    Line.nodes[pos.Copy()] = node;
+  }
 
   /// <summary>An iron pressure-relief valve for <paramref name="pos"/>, input face first in
   /// <paramref name="orientation"/>, its output open to air; placed by <see cref="Install"/>.</summary>
@@ -418,11 +561,9 @@ internal sealed class StarterSteamPowerPlant {
   /// Lays <paramref name="main"/> in iron pipe, except the cells in <paramref name="passthroughs"/>,
   /// which are fireclay passthroughs (a bend where their two faces are not opposite).
   /// </summary>
-  private void Place(Main main, params BlockPos[] passthroughs) {
+  private void Place(StarterSteamPowerPlant.Main main, params BlockPos[] passthroughs) {
     foreach (var (pos, faces) in main.Cells) {
-      string orientation = new(
-        "udnsew".Where(c => faces.Contains(c)).ToArray()
-      );
+      string orientation = new("udnsew".Where(c => faces.Contains(c)).ToArray());
       if (passthroughs.Contains(pos))
         Passthrough(pos, orientation);
       else {
@@ -453,38 +594,5 @@ internal sealed class StarterSteamPowerPlant {
       "pipe"
     );
     _placed.Add((pos, code));
-  }
-  /// <summary>A pipe run under construction: each cell and the faces it connects on.</summary>
-  internal sealed class Main {
-    public readonly Dictionary<BlockPos, HashSet<char>> Cells = [];
-
-    /// <summary>Lays pipe along the axis-aligned legs between consecutive corners.</summary>
-    public Main Lay(params BlockPos[] corners) {
-      for (int i = 1; i < corners.Length; i++) {
-        BlockPos at = corners[i - 1].Copy();
-        BlockPos to = corners[i];
-        while (!at.Equals(to)) {
-          BlockFacing step = Toward(at, to);
-          Open(at, step);
-          at = at.AddCopy(step);
-          Open(at, step.Opposite);
-        }
-      }
-      return this;
-    }
-
-    /// <summary>Adds a connector on <paramref name="face"/> of the cell at <paramref name="pos"/>.</summary>
-    public Main Open(BlockPos pos, BlockFacing face) {
-      if (!Cells.TryGetValue(pos, out HashSet<char>? faces))
-        Cells[pos.Copy()] = faces = [];
-      faces.Add(face.Code[0]);
-      return this;
-    }
-
-    private static BlockFacing Toward(BlockPos at, BlockPos to) =>
-      to.X != at.X ? (to.X > at.X ? BlockFacing.EAST : BlockFacing.WEST)
-      : to.Y != at.Y ? (to.Y > at.Y ? BlockFacing.UP : BlockFacing.DOWN)
-      : to.Z > at.Z ? BlockFacing.SOUTH
-      : BlockFacing.NORTH;
   }
 }
