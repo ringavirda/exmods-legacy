@@ -24,6 +24,12 @@
          comes from anyway: a whole suite is a few hundred milliseconds. -->
 
     <RunSettingsFilePath>$(MSBuildThisFileDirectory)parallel.runsettings</RunSettingsFilePath>
+
+    <!-- A test process applies Harmony patches after earlier tests ran the patched game methods'
+         callers hot. With tiered PGO a caller re-jitted at tier 1 inlines a virtual target behind
+         a guard on its most frequent receiver type, and a later patch never runs for that type:
+         Block.GetDrops inside SpawnDropsAndRemoveBlock (LatePatchTests). -->
+    <TieredPGO>false</TieredPGO>
   </PropertyGroup>
 
   <ItemGroup>
