@@ -381,8 +381,9 @@ public class BlockEntityBlastFurnace : BlockEntityMultiblockMachine {
           if (pipe.Medium == "Air") {
             // Best pressure standing at any tuyere, for the readout - so a player can see how far
             // short of the gate the blast is rather than only that it is short.
-            _blastPressure = Math.Max(_blastPressure, pipe.Pressure);
-            if (pipe.Pressure >= SmexValues.BfBlastPressureThreshold) {
+            float blast = GasLine.Pressure(this.NetworkAt<PipeNetwork>(pos));
+            _blastPressure = Math.Max(_blastPressure, blast);
+            if (blast >= SmexValues.BfBlastPressureThreshold) {
               hotBlastTemp = Math.Max(hotBlastTemp, pipe.Temperature);
               receivingBlast = true;
             }

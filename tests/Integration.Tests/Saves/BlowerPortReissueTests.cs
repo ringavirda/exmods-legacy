@@ -58,6 +58,7 @@ public class BlowerPortReissueTests {
       maxOutputPressure: MainAtm
     );
     Assert.Equal(MainAtm, net.State!.Pressure, 3);
+    world.Tick();
 
     world.FireBlockEntityTicks();
 
@@ -101,6 +102,54 @@ public class BlowerPortReissueTests {
     var fillerBlock = (BlockStructureFiller)world.GetBlock(portCell);
     Assert.True(Couples(fillerBlock, world, portCell, port.PortFacing));
     Assert.False(Couples(fillerBlock, world, portCell, BlockFacing.WEST));
+  }
+
+  // O is a furnace drawing the blower's main in the same second. Fails in OR when the blower loads
+  // its shaft with the main's live pressure (BlastNetwork().State.Pressure in
+  // BlockEntityMpBlower.UpdateShaftLoad).
+  [Theory]
+  [InlineData("RO")]
+  [InlineData("OR")]
+  public void A_blower_loads_its_shaft_with_the_main_settled_in_every_tick_order(
+    string slots
+  ) {
+    var (world, blower, portCell) = Load();
+    BlockMpBlower block = (BlockMpBlower)blower.Block;
+    BlockPos main = block
+      .BlastOutletWorldPos(blower.Pos)
+      .AddCopy(block.OutletFace);
+    world.Place(
+      main,
+      PipeTestWorld.MakePipe(
+        orientation: block.OutletFace.Axis == EnumAxis.Z ? "ns" : "we",
+        id: 402
+      ),
+      new BlockEntityPipe()
+    );
+    world.Place(main.AddCopy(block.OutletFace), PpexScenes.Cap(403));
+    world.Initialize(world.GetBlockEntity(main)!);
+    world.AddNode(main, "pipe");
+    var net = (PipeNetwork)world.NetworkAt(main)!;
+    net.RestoreState(
+      new PipeNetworkState {
+        Volume = MainAtm * ExlibValues.LitresPerPipe,
+        MaxVolume = ExlibValues.LitresPerPipe,
+        MediumType = "Air",
+        Pressure = MainAtm,
+      }
+    );
+
+    foreach (char slot in slots)
+      if (slot == 'R')
+        world.FireBlockEntityTicks();
+      else
+        net.TryConsumeGas(ExlibValues.LitresPerPipe, world.Accessor);
+
+    var filler = (BlockEntityStructureFiller)world.GetBlockEntity(portCell)!;
+    var port = Assert.IsType<BEBehaviorMpBlowerPort>(
+      filler.GetBehavior<BEBehaviorMPBase>()
+    );
+    Assert.Equal(BlockEntityMpBlower.ShaftLoadAt(MainAtm), port.GetResistance(), 3);
   }
 
   private static bool Couples(

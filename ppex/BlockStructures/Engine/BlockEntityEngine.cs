@@ -287,7 +287,7 @@ public abstract class BlockEntityEngine : BlockEntityProductionMachine {
 
     var inlet = this.ConnectedNetwork<PipeNetwork>(EngineBlock.SteamInletFace);
     float pressure =
-      inlet?.State?.MediumType == "Steam" ? inlet.State.Pressure : 0f;
+      inlet?.State?.MediumType == "Steam" ? GasLine.Pressure(inlet) : 0f;
     InletPressure = pressure;
 
     // Over-pressure damage: running the engine above its band wears it out; sustained

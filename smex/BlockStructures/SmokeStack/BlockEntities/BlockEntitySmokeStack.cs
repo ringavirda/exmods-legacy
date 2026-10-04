@@ -6,6 +6,7 @@ using ExpandedLib.Structures;
 using ExpandedLib.Helpers;
 using ExpandedLib.Industry.Helpers;
 using ExpandedLib.Registries;
+using PipesAndPowerExpanded.Helpers;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
@@ -140,7 +141,7 @@ public class BlockEntitySmokeStack
   /// <inheritdoc/>
   public float Pressure =>
     _system?.GetNetworkAt(Pos) is PipeNetwork gasNet
-      ? gasNet.State?.Pressure ?? 0f
+      ? GasLine.Pressure(gasNet)
       : 0f;
 
   /// <inheritdoc/>

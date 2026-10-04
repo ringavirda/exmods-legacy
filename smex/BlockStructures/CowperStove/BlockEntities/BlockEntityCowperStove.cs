@@ -236,7 +236,10 @@ public class BlockEntityCowperStove : BlockEntityMultiblockMachine {
         Api.World.BlockAccessor.GetBlockEntity(hotAirOutletPos)
         is IPipeNode hotOutlet
       ) {
-        float inputPressure = passthrough?.Pressure ?? 1f;
+        float inputPressure =
+          passthrough != null
+            ? GasLine.Pressure(this.NetworkAt<PipeNetwork>(passthroughPos))
+            : 1f;
         var accepted = hotOutlet.TryProduce(
           airVol,
           airTemp,

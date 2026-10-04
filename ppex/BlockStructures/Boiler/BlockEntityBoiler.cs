@@ -332,8 +332,7 @@ public abstract class BlockEntityBoiler : BlockEntityMultiblockMachine {
     bool draughtBlocked =
       exhaustNet != null
       && (
-        (exhaustNet.State?.Pressure ?? 0f)
-          >= PpexValues.ExhaustMaxOutputPressure
+        GasLine.Pressure(exhaustNet) >= PpexValues.ExhaustMaxOutputPressure
         || !exhaustNet.HasDraught(ba)
       );
     bool burning = fireOn && !draughtBlocked;

@@ -641,13 +641,13 @@ public class BlockEntityConverterControl : BlockEntityMultiblockMachine {
       return null;
     return
       pipeNet.State?.MediumType == "Air"
-      && pipeNet.State.Pressure >= SmexValues.BlastPressureThreshold
+      && GasLine.Pressure(pipeNet) >= SmexValues.BlastPressureThreshold
       ? pipeNet
       : null;
   }
 
   /// <summary>Pressure (atm) at the intake, or 0 when it is not receiving blast.</summary>
-  private float BlastPressure() => BlastNetwork()?.State?.Pressure ?? 0f;
+  private float BlastPressure() => GasLine.Pressure(BlastNetwork());
 
   private float TryConsumeBlast(float amount) =>
     BlastNetwork()?.TryConsumeGas(amount, Api.World.BlockAccessor) ?? 0f;

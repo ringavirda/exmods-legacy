@@ -107,7 +107,8 @@ public class BlockEntityPressureValve : BlockEntityPipe {
   }
 
   /// <summary>
-  /// Spills the input network's gas above the gate pressure into the output network. With
+  /// Spills the input network's gas above the gate pressure into the output network, judged on
+  /// both runs' <see cref="GasLine.Pressure"/> and never more than the input holds. With
   /// no output network the open face vents to atmosphere capped at the pipe-leak rate
   /// (and puffs vapour/exhaust particles). Returns the litres actually moved.
   /// </summary>
@@ -120,19 +121,21 @@ public class BlockEntityPressureValve : BlockEntityPipe {
     if (inState == null || inState.IsLiquid || inState.MaxVolume <= 0f)
       return 0f;
 
-    float allowed = _gatePressure * inState.MaxVolume;
-    if (inState.Volume <= allowed)
+    float inPressure = GasLine.Pressure(inNet);
+    if (inPressure <= _gatePressure)
       return 0f;
 
     // Don't push gas into a run that carries water - the receiver would reject it.
     if (outNet?.State is { } os && os.IsLiquid)
       return 0f;
 
-    float excess = inState.Volume - allowed;
+    float excess = Math.Min(
+      inState.Volume,
+      (inPressure - _gatePressure) * inState.MaxVolume
+    );
     var ba = Api.World.BlockAccessor;
     float temp = inState.Temperature;
     string gasType = inState.MediumType;
-    float inPressure = inState.Volume / inState.MaxVolume;
 
     if (outNet != null) {
       // Branch on the network, not State - a never-charged run has a null State (created
@@ -161,8 +164,7 @@ public class BlockEntityPressureValve : BlockEntityPipe {
       float outMax = outNet.Nodes.Count * ExlibValues.LitresPerPipe;
       if (outMax <= 0f)
         return 0f;
-      float outVol = outNet.State?.Volume ?? 0f;
-      float outPressure = outVol / outMax;
+      float outPressure = GasLine.Pressure(outNet);
       if (outPressure >= inPressure - 0.001f)
         return 0f;
 
@@ -171,7 +173,9 @@ public class BlockEntityPressureValve : BlockEntityPipe {
       // below the gate, and the blowers can keep topping it up). Capping the output ceiling at
       // the input pressure double-guards against ever driving the output above the input.
       float equalise =
-        (outMax * inState.Volume - inState.MaxVolume * outVol)
+        inState.MaxVolume
+        * outMax
+        * (inPressure - outPressure)
         / (inState.MaxVolume + outMax);
       float toMove = Math.Min(excess, equalise);
       if (toMove <= 0f)

@@ -117,7 +117,7 @@ public class BlockEntityMpBlower : BlockEntity, IRenderer {
   /// stopping, and <see cref="SmexValues.MpBlowerMaxPressure"/> is only the seal's own limit.
   /// </summary>
   private void UpdateShaftLoad() =>
-    (Port as BEBehaviorMpBlowerPort)?.SetLoad(ShaftLoadAt(BlastNetwork()?.State?.Pressure ?? 0f));
+    (Port as BEBehaviorMpBlowerPort)?.SetLoad(ShaftLoadAt(GasLine.Pressure(BlastNetwork())));
 
   /// <summary>
   /// Shaft load at <paramref name="pressure"/> atm of back-pressure. Public so the balance can be
