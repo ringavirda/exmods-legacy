@@ -28,7 +28,8 @@ resists 0.125, so a Watt pulls about five of them and a Cornish on high about th
 rebalance raised the load an engine holds per unit of power so that an engine out-pulls a vanilla
 waterwheel, which bogs down under load rather than stopping. What steam buys beyond the pull is
 placement and power on demand: anywhere, from a fire rather than a season, and driving things no
-waterwheel can, starting with the air blowers of Steelmaking Expanded. One engine drives one
+waterwheel can, starting with the Air Blower of Steelmaking Expanded, the only blower that reaches
+the Bessemer converter's 2.5 atm. One engine drives one
 sub-machine, so a plant that needs a pump and a blower needs two engines. See Steam engines.
 
 ## Which way round does the valve go, and why does a closed pipe still vent?

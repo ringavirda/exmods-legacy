@@ -121,8 +121,9 @@ each machine in it links to its own page.
   boiler, because one engine drives one sub-machine.
 - A Steam Condenser on the return, to get spent steam back as feedwater.
 - A Lancashire Boiler and a Cornish Engine for the high-pressure tier, on steel pipe.
-- An air blower from Steelmaking Expanded, which is the reason most people build steam at all: the
-  blast furnace and the Bessemer converter take blast air and no waterwheel supplies it.
+- An Air Blower from Steelmaking Expanded, which is the reason most people build steam at all: the
+  Bessemer converter takes blast at 2.5 atm or more, which only a steam blower reaches. A waterwheel
+  on a Twin-Tub Blower blows a first blast furnace but tops out at 2.0 atm.
 
 ## Where the details are
 

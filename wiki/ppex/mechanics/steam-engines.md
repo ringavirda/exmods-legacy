@@ -85,8 +85,9 @@ Pulling power is not the reason to build steam, though. What it is instead:
 
 - Power where there is no river, underground or in a walled shop.
 - Power on demand, which starts and stops with the fire rather than the season.
-- The only drive for the air blowers of Steelmaking Expanded, which is what the blast furnace and
-  the Bessemer converter need and what no waterwheel provides.
+- The only drive for the Air Blower of Steelmaking Expanded, the one blower that reaches the 2.5 atm
+  the Bessemer converter needs. A waterwheel on a Twin-Tub Blower blows a blast furnace but tops out
+  at 2.0 atm.
 
 One engine drives one sub-machine. A plant that needs a blower and a pump needs two engines, and
 usually two boilers, because the steam adds up.
