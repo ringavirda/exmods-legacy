@@ -32,6 +32,13 @@ its 1.22 build does not work beside the new library. A part-built machine keeps 
   feed from flashing in every session; before, the boiler caught the main full at the pump's head
   whenever the pump ran after both the engine and the valve. A line that gains or loses a pipe
   reads its fill until the machines on it run again.
+- **What an engine, a boiler's fire and a pressure valve read from a steam or exhaust line no
+  longer depends on the order the game runs its machines in.** Each reads the line's pressure as it
+  stood after the line's last second, its leaks and chimneys taken, so a machine that fed or drew the
+  line earlier in the same second changes nothing the others see. An engine reads its inlet, and
+  pushes its fluid pump, at one pressure whichever of it, the boiler and the steam main's relief valve
+  runs first; a relief valve spills what stood above its gate; a boiler sharing a flue with another
+  is not put out by the other filling it earlier in the second.
 - **The engine's beam turns with the Mechanical Power Generator's axle in every facing.** A Watt
   or Cornish engine facing north or east drove its rod round the crank against the axle beside it.
   Engines facing south or west already turned with it and are unchanged.

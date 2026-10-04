@@ -36,6 +36,12 @@ it `(g)`, a gauge reading, so steam temperature is taken one atmosphere higher: 
 fourth root of the reading plus one, which is 119 C at 1 atm, 132 C at 2 atm, 157 C at 5 atm and
 190 C at 12 atm.
 
+Machines read a gas run's pressure as it stood after the run's last second, its leaks, chimneys and
+open ends taken. Every engine, boiler, valve and other machine on the run reads that one figure
+until the next second, whichever order the game runs them in, so one that fed or drew the run
+earlier in the second changes nothing the others see. The look-at line shows the live pressure,
+which moves each time a machine feeds or draws.
+
 Water behaves differently. It cannot be packed past the run's capacity, so a water line reads its
 fill ratio while it is filling. Whenever anything feeding it left it brim full in the last second,
 the engine's condensate included, it is held at the highest head that fed it in that second: 1 atm

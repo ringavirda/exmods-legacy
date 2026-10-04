@@ -28,6 +28,12 @@ part-built structure keeps its stage.
   melting, stalled on a full reservoir or a blocked flue, or still climbing to iron's melting point.
   Only a melt cycle takes burden out of the hearth now, and a pile lit outside a furnace goes cold
   with all its burden.
+- **What the blast furnace, the converter, the Cowper stove, the blower and the smoke stack read
+  from a blast or exhaust line no longer depends on the order the game runs its machines in.** Each
+  reads the line's pressure as it stood after the line's last second, so a machine that fed or drew
+  the line earlier in the same second changes nothing the others see: a furnace or a converter on a
+  shared blast main gets its blast, a stove passes it on and a blower's shaft is loaded at one
+  pressure whichever runs first.
 
 ### Changed
 
