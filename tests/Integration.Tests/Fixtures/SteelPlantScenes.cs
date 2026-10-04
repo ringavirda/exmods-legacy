@@ -1,3 +1,4 @@
+using ExpandedLib;
 using ExpandedLib.Industry.Molten;
 using ExpandedLib.Industry.Pipes;
 using ExpandedLib.Testing;
@@ -401,6 +402,50 @@ internal sealed class CowperRig {
     return this;
   }
 
+  /// <summary>
+  /// Puts <paramref name="litres"/> of 20 C blast air into the passthrough, as the blowers deliver
+  /// it, and settles the run as a network tick would leave it. Does not tick the stove.
+  /// </summary>
+  public CowperRig FeedAir(float litres) {
+    _airInNet.TryProduceGas(
+      litres,
+      20f,
+      "Air",
+      World.Accessor,
+      maxOutputPressure: 3f
+    );
+    _airInNet.Settle();
+    _airInNet.BroadcastUpdate(World.Accessor);
+    return this;
+  }
+
+  /// <summary>Takes <paramref name="litres"/> out of the hot-air outlet's run, as a furnace drawing the blast.</summary>
+  public CowperRig DrawHotBlast(float litres) {
+    _hotOut.TryConsumeGas(litres, World.Accessor);
+    return this;
+  }
+
+  /// <summary>Fills the hot-air outlet's run to <paramref name="atm"/> with 900 C air, as a main backed up behind its furnace.</summary>
+  public CowperRig BackUpHotBlast(float atm) {
+    float max = _hotOut.Nodes.Count * ExlibValues.LitresPerPipe;
+    _hotOut.TryProduceGas(
+      atm * max - HotBlastVolume,
+      900f,
+      "Air",
+      World.Accessor,
+      maxOutputPressure: atm
+    );
+    _hotOut.Settle();
+    return this;
+  }
+
+  /// <summary>Valves the exhaust off and runs one production tick on what stands in the passthrough.</summary>
+  public CowperRig Blow() {
+    _exhaust.TryConsumeGas(float.MaxValue, World.Accessor);
+    Tick();
+    return this;
+  }
+
   private void Tick() =>
     ReflectionHelpers.Invoke(Stove, "OnProductionTick", 1f);
 
@@ -409,4 +454,5 @@ internal sealed class CowperRig {
   public string HotBlastMedium => _hotOut.State?.MediumType ?? "";
   public float HotBlastTemperature => _hotOut.State?.Temperature ?? 0f;
   public float HotBlastVolume => _hotOut.State?.Volume ?? 0f;
+  public float AirInVolume => _airInNet.State?.Volume ?? 0f;
 }

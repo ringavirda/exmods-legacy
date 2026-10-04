@@ -16,6 +16,7 @@ using SteelmakingExpanded;
 using SteelmakingExpanded.BlockStructures.BlastFurnace.BlockEntities;
 using SteelmakingExpanded.BlockStructures.BlastFurnace.Blocks;
 using SteelmakingExpanded.BlockStructures.CowperStove.BlockEntities;
+using SteelmakingExpanded.Tests;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
@@ -27,8 +28,9 @@ namespace Integration.Tests.Pins;
 
 /// <summary>
 /// Machines that read the pipe network, on the published ppex and smex, as exact numbers: the
-/// cowper's heat gain from exhaust, a boiler driving a Watt engine through a main, and the twin-tub
-/// blower's shaft load and port face. Each scene also records its trace.
+/// cowper's heat gain from exhaust and the blast it passes on, a boiler driving a Watt engine
+/// through a main, and the twin-tub blower's shaft load and port face. Each scene also records its
+/// trace; the cowper's blast runs on CowperRig, which records none.
 /// </summary>
 public class MachinePinTests {
   #region Cowper stove
@@ -85,6 +87,90 @@ public class MachinePinTests {
 
     Assert.Equal(21.1f, afterOne, Trace.TemperatureDigits);
     Assert.Equal(79.45f, Core(stove), 2);
+  }
+
+  /// <summary>
+  /// A furnace drawing 40 L/s through a 1000 C stove, its blowers putting back 40 L/s: every second
+  /// the hot main gains what the cold main loses, and the 40 L/s passing costs the core the heat of
+  /// one rated intake. Fails when the stove takes one intake from the passthrough whatever it blew
+  /// (passthrough.TryConsume(_intakeVolume) in BlockEntityCowperStove), and when the flow share is
+  /// not capped at one intake (drawn = passed in BlockEntityCowperStove).
+  /// </summary>
+  [Fact]
+  public void A_blowing_cowper_takes_from_the_cold_main_what_the_hot_main_gains() {
+    var rig = new CowperRig().FeedAir(2 * ExlibValues.LitresPerPipe);
+    ReflectionHelpers.SetField(rig.Stove, "_internalTemperature", 1000f);
+    var rated = new CowperRig().FeedAir(SmexValues.CowperIntakeVolume);
+    ReflectionHelpers.SetField(rated.Stove, "_internalTemperature", 1000f);
+    rated.Blow();
+    var gains = new float[10];
+    var losses = new float[10];
+    float drop = 0f;
+
+    for (int t = 0; t < gains.Length; t++) {
+      if (t > 0)
+        rig.DrawHotBlast(40f).FeedAir(40f);
+      if (t == 1)
+        ReflectionHelpers.SetField(rig.Stove, "_internalTemperature", 1000f);
+      float cold = rig.AirInVolume;
+      float hot = rig.HotBlastVolume;
+      rig.Blow();
+      losses[t] = cold - rig.AirInVolume;
+      gains[t] = rig.HotBlastVolume - hot;
+      if (t == 1)
+        drop = 1000f - rig.CoreTemperature;
+    }
+
+    Assert.Equal(2 * ExlibValues.LitresPerPipe, gains[0], 3);
+    Assert.All(gains.Skip(1), g => Assert.Equal(40f, g, 3));
+    Assert.All(
+      Enumerable.Range(0, gains.Length),
+      t => Assert.Equal(gains[t], losses[t], 3)
+    );
+    Assert.Equal(1000f - rated.CoreTemperature, drop, 3);
+  }
+
+  /// <summary>
+  /// A passthrough holding less than one intake passes on what it holds and is left empty. Fails when
+  /// the stove offers the hot outlet a full intake from a near-empty passthrough
+  /// (passthroughVol rounded up to _intakeVolume in BlockEntityCowperStove).
+  /// </summary>
+  [Fact]
+  public void A_cowper_blows_no_more_than_its_passthrough_holds() {
+    var rig = new CowperRig().FeedAir(10f);
+    ReflectionHelpers.SetField(rig.Stove, "_internalTemperature", 1000f);
+
+    rig.Blow();
+
+    Assert.Equal(10f, rig.HotBlastVolume, 3);
+    Assert.Equal(0f, rig.AirInVolume, 3);
+  }
+
+  /// <summary>
+  /// A hot main backed up above the stove's ceiling takes nothing: the cold main keeps its air and the
+  /// core loses only its ambient loss, as a stove with nothing passing does. Fails when the core's
+  /// flow share is read from the passthrough's standing volume instead of the air that passed, and
+  /// when the stove takes air from the passthrough the outlet refused.
+  /// </summary>
+  [Fact]
+  public void A_cowper_whose_hot_main_refuses_keeps_its_air_and_its_heat() {
+    var rig = new CowperRig().FeedAir(2 * ExlibValues.LitresPerPipe);
+    rig.BackUpHotBlast(3f);
+    ReflectionHelpers.SetField(rig.Stove, "_internalTemperature", 1000f);
+    var idle = new CowperRig();
+    ReflectionHelpers.SetField(idle.Stove, "_internalTemperature", 1000f);
+    float hot = rig.HotBlastVolume;
+
+    rig.Blow();
+    idle.Blow();
+
+    Assert.Equal(hot, rig.HotBlastVolume, 3);
+    Assert.Equal(2 * ExlibValues.LitresPerPipe, rig.AirInVolume, 3);
+    Assert.True(
+      idle.CoreTemperature < 1000f,
+      "the premise: the core has an ambient loss"
+    );
+    Assert.Equal(idle.CoreTemperature, rig.CoreTemperature, 3);
   }
 
   private static float Core(BlockEntityCowperStove stove) =>
