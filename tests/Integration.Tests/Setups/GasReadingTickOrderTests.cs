@@ -379,7 +379,50 @@ public class GasReadingTickOrderTests {
       }
     );
 
-    Assert.Equal(3f * Max(hotOut), hotOut.State!.Volume, 2);
+    float own = SmexValues.CowperIntakeVolume / Max(airIn);
+    Assert.Equal((3f + own) * Max(hotOut), hotOut.State!.Volume, 2);
+  }
+
+  // The hot outlet stands above the settled main by half the stove's own draw over the run's
+  // capacity. Fails when the ceiling is the settled figure alone (GasLine.Pressure(passthroughRun)
+  // in BlockEntityCowperStove): the outlet refuses the stove's air.
+  [Fact]
+  public void A_cowper_stove_that_is_drawing_passes_blast_on_up_to_the_main_plus_its_own_draw() {
+    var (rig, hotOut, own) = DrawingCowper(0.5f);
+
+    ProductionTick(rig.Stove);
+
+    Assert.Equal((3f + own) * Max(hotOut), hotOut.State!.Volume, 2);
+  }
+
+  // The outlet stands above the settled main by more than the stove's own draw over the run's
+  // capacity. Fails when the ceiling counts more than that draw (a doubled own in
+  // BlockEntityCowperStove): the outlet takes air it should refuse.
+  [Fact]
+  public void A_cowper_stove_does_not_pass_blast_on_past_the_main_plus_its_own_draw() {
+    var (rig, hotOut, _) = DrawingCowper(1.5f);
+    float before = hotOut.State!.Volume;
+
+    ProductionTick(rig.Stove);
+
+    Assert.Equal(before, hotOut.State!.Volume, 2);
+  }
+
+  private static (CowperRig, PipeNetwork, float) DrawingCowper(
+    float outletOverMain
+  ) {
+    var rig = new CowperRig();
+    for (int i = 0; i < 20; i++)
+      rig.ChargeFromExhaust(1200f);
+    var exhaust = (PipeNetwork)ReflectionHelpers.GetField(rig, "_exhaust")!;
+    var airIn = (PipeNetwork)ReflectionHelpers.GetField(rig, "_airInNet")!;
+    var hotOut = (PipeNetwork)ReflectionHelpers.GetField(rig, "_hotOut")!;
+    exhaust.TryConsumeGas(float.MaxValue, rig.World.Accessor);
+    Settle(airIn, "Air", 3f);
+    airIn.BroadcastUpdate(rig.World.Accessor);
+    float own = SmexValues.CowperIntakeVolume / Max(airIn);
+    Settle(hotOut, "Air", 3f + outletOverMain * own, 900f);
+    return (rig, hotOut, own);
   }
 
   // O is a furnace drawing the stack's run. Fails in OR when the stack reports its run's live

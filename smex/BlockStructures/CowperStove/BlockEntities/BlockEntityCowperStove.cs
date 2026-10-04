@@ -236,9 +236,16 @@ public class BlockEntityCowperStove : BlockEntityMultiblockMachine {
         Api.World.BlockAccessor.GetBlockEntity(hotAirOutletPos)
         is IPipeNode hotOutlet
       ) {
+        // The run is read as settled after this stove's draw; the ceiling adds that draw back (as a
+        // pressure over the run's capacity) so the stove does not hold its own outlet under the main.
+        PipeNetwork? passthroughRun = this.NetworkAt<PipeNetwork>(passthroughPos);
+        float own =
+          passthroughRun?.State is { MaxVolume: > 0f } runState
+            ? _intakeVolume / runState.MaxVolume
+            : 0f;
         float inputPressure =
           passthrough != null
-            ? GasLine.Pressure(this.NetworkAt<PipeNetwork>(passthroughPos))
+            ? GasLine.Pressure(passthroughRun) + own
             : 1f;
         var accepted = hotOutlet.TryProduce(
           airVol,
