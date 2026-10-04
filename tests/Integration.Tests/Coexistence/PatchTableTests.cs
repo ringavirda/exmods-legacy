@@ -48,10 +48,17 @@ public class PatchTableTests {
     ("CollectibleObject.GetHeldItemInfo postfix IronFeedInfoPatch", "none"),
 #endif
     ("BlockEntityCoalPile.Initialize postfix CoalPileBurdenPatches", "none"),
+#if GAME_GE_1_22
     (
       "BlockEntityCoalPile.OnBurningTickServer prefix CoalPileBurdenPatches",
       "none"
     ),
+#else
+    (
+      "BlockEntityCoalPile.onBurningTickServer prefix CoalPileBurdenPatches",
+      "none"
+    ),
+#endif
     (
       "BlockEntityCoalPile.ToTreeAttributes postfix CoalPileBurdenPatches",
       "none"

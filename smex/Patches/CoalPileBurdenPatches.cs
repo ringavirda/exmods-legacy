@@ -129,7 +129,11 @@ public static class CoalPileBurdenPatches {
   }
 
   [HarmonyPrefix]
+#if GAME_GE_1_22
   [HarmonyPatch("OnBurningTickServer")]
+#else
+  [HarmonyPatch("onBurningTickServer")]
+#endif
   public static void BurningTickPrefix(BlockEntityCoalPile __instance) =>
     BurdenPiles.OnBurningTick(__instance);
 
