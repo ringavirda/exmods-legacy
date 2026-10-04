@@ -37,7 +37,11 @@ public class LatePatchTests {
     var clock = Stopwatch.StartNew();
     while (clock.ElapsedMilliseconds < 3000) {
       for (int i = 0; i < 100; i++)
+#if GAME_GE_1_22
         block.SpawnDropsAndRemoveBlock(world, pos, null, 1f);
+#else
+        block.OnBlockBroken(world, pos, null, 1f);
+#endif
       Thread.Sleep(1);
     }
 
@@ -57,7 +61,11 @@ public class LatePatchTests {
     );
     try {
       _ran = 0;
+#if GAME_GE_1_22
       block.SpawnDropsAndRemoveBlock(world, pos, null, 1f);
+#else
+      block.OnBlockBroken(world, pos, null, 1f);
+#endif
       Assert.Equal(1, _ran);
     } finally {
       harmony.UnpatchAll("tests.latepatch");

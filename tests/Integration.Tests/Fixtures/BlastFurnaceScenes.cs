@@ -354,12 +354,14 @@ internal sealed class BlastFurnaceRig {
     int seconds,
     System.Action<BlastFurnaceRig>? eachSecond = null
   ) {
+#if GAME_GE_1_22
     foreach (var pos in _pilePositions)
       if (
         World.Api.World.BlockAccessor.GetBlockEntity(pos)
         is BlockEntityCoalPile { IsBurning: true } pile
       )
         pile.RegisterServerTickListener();
+#endif
     for (int i = 0; i < seconds; i++) {
       eachSecond?.Invoke(this);
       World.AdvanceHours(1.0 / SecondsPerGameHour);

@@ -155,7 +155,9 @@ public sealed class BlastFurnaceBurdenTests : IDisposable {
       pile
     );
     world.Attach(pile);
+#if GAME_GE_1_22
     pile.RegisterServerTickListener();
+#endif
 
     for (int i = 0; i < 300; i++) {
       world.AdvanceHours(1.0 / BlastFurnaceRig.SecondsPerGameHour);
