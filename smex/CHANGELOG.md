@@ -27,7 +27,7 @@ part-built structure keeps its stage.
   the hearth burned one burden off its stack every two in-game hours, whether the furnace was
   melting, stalled on a full reservoir or a blocked flue, or still climbing to iron's melting point.
   Only a melt cycle takes burden out of the hearth now, and a pile lit outside a furnace goes cold
-  with all its burden.
+  with all its burden. This holds on game versions 1.20, 1.21 and 1.22.
 - **What the blast furnace, the converter, the Cowper stove, the blower and the smoke stack read
   from a blast or exhaust line no longer depends on the order the game runs its machines in.** Each
   reads the line's pressure as it stood after the line's last second, so a machine that fed or drew
