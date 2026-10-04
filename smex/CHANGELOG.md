@@ -18,6 +18,11 @@ part-built structure keeps its stage.
   each material rather than each time the look moves to another part.
 - **Canals, taps, mold pedestals, tuyeres and the smoke stack intake turn under the wrench.**
   The wrench sounded and nothing moved. A dropped or middle-clicked block is the same item as before.
+- **A broken converter always drops its solid charge as bits.** A charge that went cold while the
+  converter stood with a part missing or out of line was lost when the vessel was broken, and could
+  not be chiselled out; a converter blown up dropped nothing of its charge. Each 5 units (the
+  default) come back as one bit, less up to two bits lost in the break; a charge still molten is
+  lost as before.
 
 ### Changed
 
