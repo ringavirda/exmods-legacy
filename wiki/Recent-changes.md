@@ -5,7 +5,7 @@ Expanded (`ppex`) and Steelmaking Expanded (`smex`), newest release first. Each 
 page that describes it as it stands now. The full list of changes, fixes included, is on the
 [Changelog](/current/Changelog/).
 
-## Moving to ppex 0.7.1 and smex 0.10.1 (2026-09-30)
+## Moving to ppex 0.7.1 and smex 0.10.1 (2026-10-05)
 
 - A boiler's fire needs a chimney or a smoke stack on its exhaust run. Open pipe ends carry the
   exhaust away but give no draught, so a boiler that vented through an open end is choked and its

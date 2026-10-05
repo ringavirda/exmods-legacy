@@ -5,7 +5,7 @@ All notable changes to this mod are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). For changes before this file existed,
 see the git history.
 
-## [0.7.1] - 2026-09-30
+## [0.7.1] - 2026-10-05
 
 Requires Expanded Library 0.8.4 or later. exlib 0.8.4 names 0.7.0 in the log and in chat, since
 its 1.22 build does not work beside the new library. A part-built machine keeps its stage.
