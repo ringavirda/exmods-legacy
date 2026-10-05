@@ -43,6 +43,10 @@ page that describes it as it stands now. The full list of changes, fixes include
 - Adding Iron Industry Expanded or Steel Industry Expanded to a world closes ppex and smex: what is
   built keeps working, nothing new can be built, and their items are removed. See
   [Compatibility](/current/ppex/mechanics/compatibility/#iron-industry-expanded-and-steel-industry-expanded).
+- Furnace parts that close a wall now close a room: the blast furnace tap on every face, the smoke
+  stack intake around its pipe ends, the hopper bell's four sides, the converter transmission's top,
+  and a canal's floor and the sides its run does not pass through. A room walled in part by them
+  counts as enclosed, as a cellar or a greenhouse needs.
 
 ## Moving to ppex 0.6.9 and smex 0.9.9 (2026-09-23)
 
@@ -86,6 +90,9 @@ page that describes it as it stands now. The full list of changes, fixes include
 - Cowper stoves cool while idle and drain faster under a heavy blast. See
   [Hot blast](/current/smex/mechanics/hot-blast/#running-a-pair).
 - Blast mix is called burden; existing stacks convert on load.
+- The blast furnace door, tuyeres and molten metal taps come in the refractory tier of the brick
+  their recipe spends, and carry the tier in their name. Doors, tuyeres and taps placed before
+  became tier 3. See [Blast Furnace Door](/current/smex/blocks/blastfurnace/door/).
 
 ## Moving to ppex 0.6.6 and smex 0.9.6 (2026-08-09)
 
