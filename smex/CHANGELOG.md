@@ -23,6 +23,12 @@ part-built structure keeps its stage.
   not be chiselled out; a converter blown up dropped nothing of its charge. Each 5 units (the
   default) come back as one bit, less up to two bits lost in the break; a charge still molten is
   lost as before.
+- **A mold filled on a mold pedestal or under a canal tap hardens about as fast as one filled by
+  hand.** It cooled at the canal rate, 24 degrees a game hour, instead of vanilla's 300 for a tool
+  mold, and a mold lifted off the pedestal carried that rate with it. The cast in a pedestal or tap
+  mold now cools at 300 times `MoldPedestalCooldownCoefficient` or `TapMoldCooldownCoefficient`
+  (both 1 by default), and the lifted mold keeps it. Metal in the canals, including the cell under
+  the tap or pedestal, and in barrels and the converter keeps `MoltenCooldownSpeed`.
 - **A lit blast furnace no longer loses burden while it is not melting.** Each burning pile in
   the hearth burned one burden off its stack every two in-game hours, whether the furnace was
   melting, stalled on a full reservoir or a blocked flue, or still climbing to iron's melting point.

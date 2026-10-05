@@ -46,7 +46,7 @@ is loaded. No other ore mod has an adaptation, and crushing recipes are where or
 two mods that both rewrite how a nugget crushes can produce a loop where iron makes more iron, so
 run one such mod at a time. [[Compatibility]] lists what this mod patches and adapts to.
 
-## How do I pick up molds with molten ingots without getting hurt, and why do they take 70 minutes to cool?
+## How do I pick up molds with molten ingots without getting hurt, and why does a canal-fed cast take longer to cool?
 
 Wear heavy leather gloves or a blacksmith's gloves. Tongs do not work and were rejected by design,
 since a mold is held with both hands. Metal over 200 C in a mold in your hand costs you a health
@@ -56,8 +56,9 @@ A filled mold can be picked up, unlike vanilla, but liquid metal only rides in y
 another hotbar slot, a bag, a chest or a mold rack empties it at once. On the cooling, a mold under
 an open pour does not cool at all, because every unit that lands restamps the cast to the canal's
 temperature. It starts cooling when it is full, when the run empties, or when you shut the pour,
-and taking it off the pedestal takes it out of the pour. A canal-fed cast can run to about 70 real
-minutes against about 3 for a crucible pour. Count your molds before you tap. See [[Casting]].
+and taking it off the pedestal takes it out of the pour. A mold on a pedestal or under a tap cools
+at the pace of one poured by hand once the pour stops, but it starts from furnace temperature.
+Count your molds before you tap. See [[Casting]].
 
 ## How do I know when the steel is done?
 

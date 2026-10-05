@@ -55,15 +55,17 @@ canal's temperature until it is full, until the run empties, or until you shut t
 does the clock start.
 
 Cooling itself runs on the item stack, so it keeps running whether the mold is on a pedestal, under
-a tap, in your hand or on the ground. A cast is finished when it is hardened, below 30 per cent of
+a tap, in your hand or on the ground, and at one pace: the vanilla pace of a mold poured by hand,
+set by `TapMoldCooldownCoefficient` and `MoldPedestalCooldownCoefficient` (1.0 is vanilla's).
+A mold lifted off a pedestal or a tap keeps that pace. Metal standing in the canals, including the
+cell under a tap or a pedestal, cools at the slower `MoltenCooldownSpeed`, so a run holds its heat
+long enough to reach the molds. A cast is finished when it is hardened, below 30 per cent of
 the metal's melting point: 445 C for iron, 451 C for steel.
 
-That is the whole of the answer to why a canal-fed cast takes so much longer than a crucible pour.
-The crucible pours a fixed amount of metal at crucible temperature and stops; the canal keeps
-topping the mold up at furnace temperature, which takes it from about 3 minutes to cool by
-crucible to around 70 real minutes fed by canal. Stage a run's molds in advance: count them before
-you tap, not after. Taking a mold off its pedestal and setting it on the ground takes it out of the
-pour and gets it cooling.
+What makes a canal-fed cast slower than a crucible pour is the open pour, not the pace: the canal
+keeps topping the mold up at furnace temperature, so the clock starts from there and only after the
+pour ends. Stage a run's molds in advance: count them before you tap, not after. Taking a mold off
+its pedestal and setting it on the ground takes it out of the pour and gets it cooling.
 
 ## Getting the casting out
 

@@ -19,6 +19,9 @@ page that describes it as it stands now. The full list of changes, fixes include
 - A blowing Cowper stove passes on only the air its blowers deliver. A furnace that ran on the
   stove's extra air now needs blowers that carry its whole draw. See
   [Hot blast](/current/smex/mechanics/hot-blast/#discharging).
+- A mold on a mold pedestal or under a canal tap hardens about as fast as the same mold filled by
+  hand, and a mold lifted off keeps that pace. Metal standing in the canals still holds its heat.
+  See [Casting](/current/smex/mechanics/casting/#cooling).
 
 ## Moving to ppex 0.7.0 and smex 0.10.0 (2026-09-29)
 

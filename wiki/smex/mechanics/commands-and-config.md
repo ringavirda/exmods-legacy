@@ -135,9 +135,9 @@ could not reach its own melting point.
 
 | key | default | sets |
 |---|---|---|
-| `MoltenCooldownSpeed` | 24 | cooling rate stamped on molten metal the system creates |
+| `MoltenCooldownSpeed` | 24 | cooling rate stamped on molten metal in the canals, barrels and the converter |
 | `BarrelCooldownCoefficient` | 1.0 | multiplier on it for metal in a barrel |
-| `TapMoldCooldownCoefficient` | 1.0 | the same for a mold under a canal tap |
+| `TapMoldCooldownCoefficient` | 1.0 | multiplier on vanilla's mold cooling rate (300) for a mold under a canal tap |
 | `MoldPedestalCooldownCoefficient` | 1.0 | the same for a mold on a pedestal |
 | `MoltenFlowRate` | 100 | units crossing one canal connection per second |
 | `MoltenMinFlowAmount` | 1 | smallest gap between two cells that still moves metal |
