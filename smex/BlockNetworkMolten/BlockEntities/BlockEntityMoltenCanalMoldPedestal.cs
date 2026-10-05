@@ -66,10 +66,11 @@ public class BlockEntityMoltenCanalMoldPedestal : BlockEntityMoltenCanal {
   public override int MaxUnitCapacity =>
     (int)Math.Ceiling(SmexValues.CanalDefaultUnitCapacity / 2.0);
 
-  // Cooldown rate for metal cast in the mold: the molten-system base scaled by the pedestal's mold
-  // coefficient (mirrors the converter's charge cooldown). Read live so a config change applies now.
+  // Cooldown rate for metal cast in the mold: vanilla's tool-mold rate scaled by the pedestal's mold
+  // coefficient; the cell keeps the canal rate. Read live so a config change applies now.
   private static float MoldCooldownSpeed =>
-    SmexValues.MoltenCooldownSpeed * SmexValues.MoldPedestalCooldownCoefficient;
+    MoltenMetal.VanillaMoldCooldownSpeed
+    * SmexValues.MoldPedestalCooldownCoefficient;
 
   /// <summary>Toggles whether the pedestal fills its mold from the network.</summary>
   public void TryTogglePouring() {
@@ -162,7 +163,7 @@ public class BlockEntityMoltenCanalMoldPedestal : BlockEntityMoltenCanal {
     }
 
     // Keep the cast mold's cooldown rate in step with the live config (before the pour gate) so a
-    // `/exmod config smex MoltenCooldownSpeed ...` change affects metal already cast in the mold.
+    // coefficient change affects metal already cast in the mold.
     if (IsMold && MoldMetalContent != null && MoldCurrentUnits > 0)
       MoltenMetal.SyncCooldownSpeed(
         Api.World,

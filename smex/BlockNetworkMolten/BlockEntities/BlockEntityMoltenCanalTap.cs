@@ -108,11 +108,11 @@ public class BlockEntityMoltenCanalTap : BlockEntityMoltenCanal {
     Block.Attributes?["drainSpeed"].AsFloat(SmexValues.CanalDefaultDrainSpeed)
     ?? SmexValues.CanalDefaultDrainSpeed;
 
-  // Cooldown rates for the tap's parked content: the molten-system base scaled by the coefficient
-  // for that fitting, matching the standalone barrel and the converter charge. Read live so a config
-  // change applies immediately.
+  // Cooldown rates for the tap's parked content: a mold cools at vanilla's tool-mold rate and a
+  // barrel at the molten-system base, each scaled by the coefficient for that fitting. The tap's
+  // own cell keeps the canal rate. Read live so a config change applies immediately.
   private static float MoldCooldownSpeed =>
-    SmexValues.MoltenCooldownSpeed * SmexValues.TapMoldCooldownCoefficient;
+    MoltenMetal.VanillaMoldCooldownSpeed * SmexValues.TapMoldCooldownCoefficient;
 
   private static float BarrelCooldownSpeed =>
     SmexValues.MoltenCooldownSpeed * SmexValues.BarrelCooldownCoefficient;
@@ -357,8 +357,8 @@ public class BlockEntityMoltenCanalTap : BlockEntityMoltenCanal {
 
   private void OnServerTick(float dt) {
     // Keep the parked content's cooldown rate in step with the live config - this runs every tick,
-    // before the pour gate, so a `/exmod config smex MoltenCooldownSpeed ...` change reaches metal
-    // already cast in the mold or standing in the barrel.
+    // before the pour gate, so a coefficient or `/exmod config smex MoltenCooldownSpeed ...` change
+    // reaches metal already cast in the mold or standing in the barrel.
     if (IsMold && MoldMetalContent != null && MoldCurrentUnits > 0)
       MoltenMetal.SyncCooldownSpeed(
         Api.World,

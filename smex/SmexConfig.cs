@@ -118,7 +118,10 @@ public class SmexConfig : IExVersionedConfig {
   ];
 
   #region Molten system
-  /// <summary>Temperature cooldown speed applied to molten-metal stacks held by the molten system (canal cells, taps, barrels, molds, the bessemer charge).</summary>
+  /// <summary>Temperature cooldown speed ( deg C per game hour) applied to molten-metal stacks held by
+  /// the molten system: canal cells, including the canal pool of a tap or a mold pedestal, barrels and
+  /// the bessemer charge. A mold on a pedestal or under a tap cools at
+  /// <c>MoltenMetal.VanillaMoldCooldownSpeed</c> instead.</summary>
   public float MoltenCooldownSpeed { get; set; } = 24f;
 
   /// <summary>Multiplier on <see cref="MoltenCooldownSpeed"/> for metal stored in a standalone molten
@@ -126,12 +129,14 @@ public class SmexConfig : IExVersionedConfig {
   /// holds its heat longer; 1 = the base molten rate. Applied live to metal already in the barrel.</summary>
   public float BarrelCooldownCoefficient { get; set; } = 1f;
 
-  /// <summary>Multiplier on <see cref="MoltenCooldownSpeed"/> for metal cast in a mold parked under a
-  /// canal tap. Below 1 the cast holds its heat longer; 1 = the base molten rate. Applied live.</summary>
+  /// <summary>Multiplier on vanilla's tool-mold cooldown speed (<c>MoltenMetal.VanillaMoldCooldownSpeed</c>)
+  /// for metal cast in a mold parked under a canal tap; the cast keeps the rate when the mold is lifted
+  /// off. Below 1 the cast holds its heat longer; 1 cools as a mold poured by hand. Applied live.</summary>
   public float TapMoldCooldownCoefficient { get; set; } = 1f;
 
-  /// <summary>Multiplier on <see cref="MoltenCooldownSpeed"/> for metal cast in a mold on a pedestal.
-  /// Below 1 the cast holds its heat longer; 1 = the base molten rate. Applied live.</summary>
+  /// <summary>Multiplier on vanilla's tool-mold cooldown speed (<c>MoltenMetal.VanillaMoldCooldownSpeed</c>)
+  /// for metal cast in a mold on a pedestal; the cast keeps the rate when the mold is lifted off.
+  /// Below 1 the cast holds its heat longer; 1 cools as a mold poured by hand. Applied live.</summary>
   public float MoldPedestalCooldownCoefficient { get; set; } = 1f;
 
   /// <summary>Max metal (units) flowing across one canal connection per second; balance against <see cref="MoltenCooldownSpeed"/>.</summary>
