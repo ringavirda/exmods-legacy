@@ -47,7 +47,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ringavirda/modding-vsexlib
-          ref: 5b1fdb07751355874141563b6b09607d6987ace8
+          ref: 733708f8b0bb5e07c6eb5ebfc54f4a8522a39199
           path: .exlib
 
       # The SDK from global.json builds every target; the 1.21 and 1.20 test hosts run on their own
