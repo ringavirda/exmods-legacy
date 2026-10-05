@@ -1,12 +1,17 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using ExpandedLib.Industry.Molten;
 using ExpandedLib.Testing;
+using Integration.Tests.Saves;
+using Newtonsoft.Json.Linq;
 using NSubstitute;
 using SteelmakingExpanded.BlockNetworkMolten.BlockEntities;
 using SteelmakingExpanded.BlockNetworkMolten.Blocks;
 using Vintagestory.API.Common;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 
 namespace Integration.Tests.Pins;
 
@@ -46,6 +51,9 @@ internal sealed class CanalLine {
   public BlockEntityMoltenCanalMoldPedestal Pedestal =>
     Cells.OfType<BlockEntityMoltenCanalMoldPedestal>().Single();
 
+  public BlockEntityMoltenCanalTap Tap =>
+    Cells.OfType<BlockEntityMoltenCanalTap>().Single();
+
   /// <summary>Pours up to <paramref name="units"/> of iron at <paramref name="temp"/> into cell <paramref name="index"/>.</summary>
   public int Pour(int index, int units, float temp = 1700f) =>
     MoltenClock.Pour(Scene.World, Cells[index], MoltenClock.Iron, units, temp);
@@ -66,14 +74,55 @@ internal sealed class CanalLine {
 internal static class MoltenClock {
   public const string Iron = "game:ingot-iron";
   public const string Copper = "game:ingot-copper";
+  public const string Steel = "game:ingot-steel";
 
   /// <summary>Game hours one scene tick advances the calendar by.</summary>
   public const double HoursPerTick = 1.0 / 120.0;
 
-  /// <summary>Registers iron (melting at 1500 C) and copper (1084 C) in <paramref name="world"/>.</summary>
+  /// <summary>Registers iron (melting at 1500 C), copper (1084 C) and steel (1502 C) in <paramref name="world"/>.</summary>
   public static void RegisterMetals(TestWorld world) {
     world.RegisterItem(Iron, 1500f);
     world.RegisterItem(Copper, 1084f);
+    world.RegisterItem(Steel, 1502f);
+  }
+
+  /// <summary>
+  /// The fired double-ingot tool mold with the attributes smex ships for it (200 units, two ingots),
+  /// read from its block type. The block's id is 900, clear of the cells' ids.
+  /// </summary>
+  public static Block DoubleIngotMold() {
+    var type = JObject.Parse(
+      File.ReadAllText(
+        Path.Combine(
+          SaveGoldens.RepoRoot(),
+          "smex/assets/smex/blocktypes/molds/toolmoldfired.json"
+        )
+      )
+    );
+    var block = TestBlocks.Configure(
+      new BlockToolMold(),
+      "smex:toolmold-black-fired-doubleingot",
+      900,
+      ("color", "black"),
+      ("materialtype", "fired"),
+      ("tooltype", "doubleingot")
+    );
+    block.Attributes = new JsonObject(
+      type["attributesByType"]!["toolmold-*-fired-doubleingot"]!
+    );
+    return block;
+  }
+
+  /// <summary>A vanilla tool mold of <paramref name="mold"/> standing on the ground at <paramref name="pos"/>, initialised, for a pour by hand.</summary>
+  public static BlockEntityToolMold MoldOnTheGround(
+    TestWorld world,
+    BlockPos pos,
+    Block mold
+  ) {
+    var be = new BlockEntityToolMold();
+    world.Place(pos, mold, be);
+    world.Initialize(be);
+    return be;
   }
 
   /// <summary>Sets the calendar to <paramref name="tick"/> scene ticks from zero.</summary>
@@ -96,7 +145,7 @@ internal static class MoltenClock {
 
   /// <summary>
   /// A block and a fresh entity for a canal cell. <paramref name="kind"/> is <c>start</c>,
-  /// <c>pedestal</c> or <c>straight</c> (north-south), or <c>type-orientation</c> for any other
+  /// <c>pedestal</c>, <c>tap</c> or <c>straight</c> (north-south), or <c>type-orientation</c> for any other
   /// canal type, such as <c>bend-nw</c> or <c>start-e</c>.
   /// </summary>
   public static (BlockMoltenCanal block, BlockEntityMoltenCanal be) Cell(
@@ -108,7 +157,7 @@ internal static class MoltenClock {
     string orientation =
       parts.Length > 1 ? parts[1]
       : type == "start" ? "s"
-      : type == "moldpedestal" ? "n"
+      : type == "moldpedestal" || type == "tap" ? "n"
       : "ns";
     return type switch {
       "start" => (
@@ -118,6 +167,10 @@ internal static class MoltenClock {
       "moldpedestal" => (
         Configure(new BlockMoltenCanalMoldPedestal(), type, orientation, id),
         new BlockEntityMoltenCanalMoldPedestal()
+      ),
+      "tap" => (
+        Configure(new BlockMoltenCanalTap(), type, orientation, id),
+        new BlockEntityMoltenCanalTap()
       ),
       _ => (
         Configure(new BlockMoltenCanal(), type, orientation, id),
